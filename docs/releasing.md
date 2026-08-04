@@ -1,0 +1,140 @@
+# Releasing
+
+Everything ships from GitHub. Two workflows do the work, and neither needs a secret you
+have to create: the built-in `GITHUB_TOKEN` covers all of it.
+
+| Workflow | Runs on | What it does |
+|----------|---------|--------------|
+| [`ci.yml`](../.github/workflows/ci.yml) | Pull requests, pushes to `main` | Typecheck, lint, tests, build, plus migrations against a real PostgreSQL |
+| [`release.yml`](../.github/workflows/release.yml) | Pushes to `main` | Builds and publishes the image. If the version in `package.json` is new, also creates the tag and the GitHub Release. |
+
+---
+
+## Cutting a release
+
+There is no tagging step. `release.yml` reads the `version` field in `package.json` on
+every push to `main`. If no tag exists for it yet, that push is a release.
+
+```bash
+# 1. Bump the version
+$EDITOR package.json          # "version": "0.2.0"
+
+# 2. Write the notes. The section heading must match the version exactly,
+#    because its contents become the body of the GitHub Release.
+$EDITOR CHANGELOG.md          # ## [0.2.0] - 2026-08-14
+
+# 3. Commit and push. That is the whole release.
+git commit -am "Docket 0.2.0"
+git push
+
+# 4. Watch it. 10 to 20 minutes, because the ARM build is emulated.
+gh run watch
+```
+
+That single push produces:
+
+- the image, built for `linux/amd64` and `linux/arm64`
+- image tags `0.2.0`, `0.2`, `0`, `latest`, `main` and `sha-<short>`
+- the `v0.2.0` git tag
+- the GitHub Release, with the changelog section as its body
+
+Push to `main` **without** changing the version and you get an ordinary edge build: `main`
+and `sha-<short>` only. No tag, no release, and `latest` stays where it was.
+
+### Guard rails
+
+The workflow stops before publishing anything if:
+
+- the version is not plain `X.Y.Z`, so a typo cannot create a tag that then has to be
+  deleted from a public repository
+- `CHANGELOG.md` has no `## [<version>]` section, because a release with an empty body is
+  worse than a failed build
+
+---
+
+## One-time setup
+
+### 1. Make the package public, after the first successful build
+
+This is the step that is easy to miss. A new GitHub Packages entry is **private**, even in
+a public repository, so `docker pull` fails for anyone who is not signed in.
+
+1. Repository main page → **Packages** in the right-hand sidebar.
+2. Click **docket**.
+3. **Package settings → Danger Zone → Change visibility → Public.**
+
+Use **Connect repository** while you are there if the package is not already linked. That
+is what puts the README on the package page and the package in the repository sidebar.
+
+Check it from a signed-out shell:
+
+```bash
+docker logout ghcr.io
+docker pull ghcr.io/stack256/docket:main
+```
+
+### 2. Check the owner name matches
+
+The workflow itself needs no editing, because it uses `github.repository`. Three other
+places hardcode `stack256`:
+
+| File | What to check |
+|------|---------------|
+| [`docker-compose.yml`](../docker-compose.yml), [`docker-compose.external-db.yml`](../docker-compose.external-db.yml) | the `x-image` default |
+| [`README.md`](../README.md) | badge URLs and the `ghcr.io/...` examples |
+| [`Dockerfile`](../Dockerfile) | the OCI `org.opencontainers.image.*` label URLs |
+
+---
+
+## Checking a published release
+
+```bash
+docker pull ghcr.io/stack256/docket:0.2.0
+docker image inspect ghcr.io/stack256/docket:0.2.0 --format '{{.Config.User}}'
+# expect: node
+
+# both architectures present?
+docker buildx imagetools inspect ghcr.io/stack256/docket:0.2.0 | grep -A1 Platform
+
+# end to end, on the published image
+curl -O https://raw.githubusercontent.com/stack256/docket/main/docker-compose.yml
+curl -o .env https://raw.githubusercontent.com/stack256/docket/main/.env.docker.example
+# set APP_SECRET, then:
+IMAGE_TAG=0.2.0 docker compose up -d
+curl -s localhost:3000/api/health
+# {"status":"ok","database":"ok","version":"0.2.0"}
+```
+
+The `version` in that health response comes from the `APP_VERSION` build argument, which
+the workflow sets from the released version. It is the quickest way to confirm which build
+a container is actually running. Edge builds report `main-<sha>` instead.
+
+---
+
+## Things that will bite you
+
+- **A new package is private.** Covered above, and worth repeating because the symptom is
+  confusing: the build goes green, the package page exists, and strangers still get
+  `denied` or `manifest unknown` when they pull.
+- **Do not split the release into two workflows.** A git tag pushed by a workflow using
+  the built-in `GITHUB_TOKEN` does **not** trigger other workflows; GitHub blocks that to
+  prevent recursion. A separate "tag it" workflow feeding a separate "build on tag"
+  workflow looks tidier and quietly never builds anything. That is why `release.yml` does
+  the whole thing in one run.
+- **`NEXT_PUBLIC_*` values are compiled in at build time.** The published image is built
+  with the Pusher keys empty on purpose, because those values end up in the browser code
+  and baking one operator's keys into a public image would hand them to everyone who
+  downloads it. Do not "fix" this by adding them to the workflow's `build-args`.
+- **ARM builds are slow**, because they run under emulation rather than on native
+  hardware. The registry-backed build cache makes reruns much faster. Do not switch it to
+  `type=gha`, which is capped at 10 GB per repository and evicts aggressively.
+- **Re-releasing a version does nothing.** Once `v0.2.0` is tagged, pushing again with the
+  same version in `package.json` produces an edge build and no release. To re-cut it you
+  have to delete the tag and the release first, which is worth avoiding on a public
+  repository.
+- **Schema changes need their migration committed.** CI fails the migrations job
+  otherwise, because that combination breaks the one-off `migrate` step on every fresh
+  install.
+- **Do not rename the `support_tool_pgdata` or `support_tool_uploads` volumes**, or the
+  `support_tool` database, in a release. Renaming quietly orphans existing users' data. It
+  is not deleted, just invisible to the new container, which is worse than an error.

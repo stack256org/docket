@@ -1,0 +1,156 @@
+# Docket, the normal way to run it. PostgreSQL included, nothing built locally.
+#
+#   curl -O https://raw.githubusercontent.com/stack256/docket/main/docker-compose.yml
+#   curl -o .env https://raw.githubusercontent.com/stack256/docket/main/.env.docker.example
+#   # edit .env: set APP_SECRET (openssl rand -base64 36) and NEXT_PUBLIC_APP_URL
+#   docker compose up -d
+#
+# This pulls a published image built for both Intel and ARM, rather than running
+# a full Next.js build on your server, which on a small machine is slow and
+# memory-hungry.
+#
+# The other two files are alternatives, never used alongside this one:
+#   docker-compose.external-db.yml   your own PostgreSQL instead of the bundled one
+#   docker-compose.build.yml         build from source, for changing the code
+#
+# Pin a version in production, because `latest` moves on every release:
+#   IMAGE_TAG=1.0.0 docker compose up -d
+#
+# Port 3000 already taken? Use HOST_PORT, never PORT. See the app service below.
+#
+# Your data lives in two named volumes, support_tool_pgdata and
+# support_tool_uploads. They are pinned to literal names and survive `down`,
+# `pull` and `up -d`. Only `down -v` destroys them. See the bottom of this file.
+
+x-image: &image ${DOCKET_IMAGE:-ghcr.io/stack256/docket}:${IMAGE_TAG:-latest}
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: support
+      POSTGRES_DB: support_tool
+      # Pinned explicitly — the image's default data directory changed in
+      # Postgres 18. See the long comment in docker-compose.yml.
+      PGDATA: /var/lib/postgresql/data
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d support_tool"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Runs as root for a fraction of a second, purely to hand the uploads volume to
+  # the unprivileged `node` user (uid 1000) that the app runs as. Exists because
+  # Docker gives a *pre-existing* named volume root ownership: any deployment
+  # created before the app went non-root has a root-owned volume, and attachment
+  # writes would start failing with EACCES after the upgrade. A fresh volume
+  # inherits ownership from the image directory and is already correct — chown is
+  # then a no-op. Either way this runs unconditionally and idempotently, so no
+  # operator has to remember a manual migration step.
+  #
+  # `alpine` rather than the app image so it needs nothing built and cannot be
+  # affected by app-level env or entrypoint changes.
+  init-uploads:
+    image: alpine:3
+    user: "0:0"
+    command: >
+      sh -c "chown -R 1000:1000 /app/uploads &&
+             echo 'uploads volume ownership set to uid/gid 1000'"
+    volumes:
+      - uploads:/app/uploads
+    restart: "no"
+
+  # One-shot: applies migrations and seeds default statuses/categories/priorities,
+  # then exits. app and worker wait for it to complete successfully.
+  migrate:
+    image: *image
+    pull_policy: always
+    command: pnpm setup
+    # Mounted even though `pnpm setup` itself writes no files: this service is the
+    # natural place to `docker compose run --rm migrate <script>`, and the Zammad
+    # importer writes attachments AND its resume checkpoint into /app/uploads.
+    # Without the mount those land in the container's ephemeral layer and vanish.
+    volumes:
+      - uploads:/app/uploads
+    env_file: .env
+    depends_on:
+      init-uploads:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    image: *image
+    pull_policy: always
+    command: pnpm start
+    env_file: .env
+    # Behind a reverse proxy on the same Docker network (Traefik, Caddy, Dokploy,
+    # Coolify)? Replace the ports block with `expose: ["3000"]` so nothing binds
+    # a host port.
+    # HOST_PORT, not PORT: `env_file: .env` passes every var into the container,
+    # and `next start` itself consumes PORT — so naming this PORT would make one
+    # variable silently change the container's internal bind port too, breaking
+    # both this mapping and the image's HEALTHCHECK (which probes :3000).
+    ports:
+      - "${HOST_PORT:-3000}:3000"
+    # Belt and braces: pin the internal port so a stray PORT in .env can never
+    # move it. `environment:` wins over `env_file:` in Compose.
+    environment:
+      PORT: 3000
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      init-uploads:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    # The image ships its own HEALTHCHECK (GET /api/health) — no need to
+    # redeclare it here.
+
+  worker:
+    image: *image
+    pull_policy: always
+    command: pnpm worker:start
+    env_file: .env
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      init-uploads:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    # Not the app server, so the image's HTTP healthcheck does not apply.
+    healthcheck:
+      disable: true
+
+volumes:
+  # Literal names, not Compose's "<project>_<volume>" default. Some deploy tools
+  # do not keep the compose project name stable across redeploys, which quietly
+  # creates a new empty volume and orphans the old one. All three compose files
+  # use these same names, so you can switch between them without losing data.
+  pgdata:
+    name: support_tool_pgdata
+  uploads:
+    name: support_tool_uploads
+
+# ── The optional Pusher features and this image ───────────────────────────────
+# The published image is built with no Pusher keys, on purpose. NEXT_PUBLIC_*
+# values are compiled into the browser code at build time, so a public image
+# cannot carry yours. The server-side half (PUSHER_APP_ID, PUSHER_SECRET,
+# PUSHER_BEAMS_SECRET_KEY) still works from .env here, but the browser half will
+# be empty, so live-updating lists and push notifications stay off.
+#
+# To turn them on, build from source: put every PUSHER_* value in .env and run
+#   docker compose -f docker-compose.build.yml build
+#   docker compose -f docker-compose.build.yml up -d

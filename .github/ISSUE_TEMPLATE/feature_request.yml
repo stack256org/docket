@@ -1,0 +1,50 @@
+name: Feature request
+description: Suggest a capability Docket doesn't have yet.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: >
+        Describe the situation, not the solution. What are you doing today, and where
+        does it break down? This is the part that decides whether a feature gets built.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like it to do?
+      description: Your proposed behaviour, if you have one in mind.
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Workarounds you've tried
+      description: Including anything you're doing via the public API or webhooks today.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of the app?
+      options:
+        - Customer portal
+        - Agent portal
+        - Admin portal
+        - Public API (/api/v1)
+        - Webhooks
+        - Email / notifications
+        - Reporting / dashboard
+        - Install, Docker, or deployment
+        - Other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Would you be willing to work on it?
+      description: Entirely optional — this doesn't affect whether the idea is accepted.
+      options:
+        - label: I'd be up for opening a PR

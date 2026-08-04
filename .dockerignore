@@ -1,0 +1,23 @@
+node_modules
+.next
+.git
+.env
+.env.local
+.env*.local
+*.pem
+.DS_Store
+npm-debug.log*
+pnpm-debug.log*
+coverage
+.docket-postgres
+tsconfig.tsbuildinfo
+uploads
+
+# Build inputs only — the runtime image does `COPY . .` for the worker (tsx) and
+# drizzle migrations, so anything left here ends up shipped to every user.
+Dockerfile
+docker-compose*.yml
+.github
+docs
+*.md
+!README.md

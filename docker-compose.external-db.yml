@@ -1,0 +1,116 @@
+# Docket with your own hosted PostgreSQL (Neon, Supabase, RDS and so on) instead
+# of the bundled one. No postgres service here at all. Nothing is built locally;
+# this pulls the published image, same as docker-compose.yml.
+#
+# Use this file INSTEAD OF docker-compose.yml, not alongside it:
+#
+#   curl -O https://raw.githubusercontent.com/stack256/docket/main/docker-compose.external-db.yml
+#   curl -o .env https://raw.githubusercontent.com/stack256/docket/main/.env.docker.example
+#   # edit .env: DATABASE_URL (your connection string), APP_SECRET, NEXT_PUBLIC_APP_URL
+#   docker compose -f docker-compose.external-db.yml up -d
+#
+# The one-off `migrate` service applies migrations and seeds defaults before the
+# app and worker start, against whatever DATABASE_URL you set.
+#
+# Pin a version in production, because `latest` moves on every release:
+#   IMAGE_TAG=1.0.0 docker compose -f docker-compose.external-db.yml up -d
+#
+# Port 3000 already taken? Use HOST_PORT, never PORT. See the app service below.
+#
+# Need the optional Pusher features? Those values are compiled into the browser
+# code at build time, so they cannot come from a published image. Build from
+# source with docker-compose.build.yml instead.
+
+x-image: &image ${DOCKET_IMAGE:-ghcr.io/stack256/docket}:${IMAGE_TAG:-latest}
+
+services:
+  # Runs as root for a fraction of a second, purely to hand the uploads volume to
+  # the unprivileged `node` user (uid 1000) that the app runs as. Exists because
+  # Docker gives a *pre-existing* named volume root ownership: any deployment
+  # created before the app went non-root has a root-owned volume, and attachment
+  # writes would start failing with EACCES after the upgrade. A fresh volume
+  # inherits ownership from the image directory and is already correct — chown is
+  # then a no-op. Either way this runs unconditionally and idempotently, so no
+  # operator has to remember a manual migration step.
+  #
+  # `alpine` rather than the app image so it needs nothing built and cannot be
+  # affected by app-level env or entrypoint changes.
+  init-uploads:
+    image: alpine:3
+    user: "0:0"
+    command: >
+      sh -c "chown -R 1000:1000 /app/uploads &&
+             echo 'uploads volume ownership set to uid/gid 1000'"
+    volumes:
+      - uploads:/app/uploads
+    restart: "no"
+
+  migrate:
+    image: *image
+    pull_policy: always
+    command: pnpm setup
+    # Mounted even though `pnpm setup` itself writes no files: this service is the
+    # natural place to `docker compose run --rm migrate <script>`, and the Zammad
+    # importer writes attachments AND its resume checkpoint into /app/uploads.
+    # Without the mount those land in the container's ephemeral layer and vanish.
+    volumes:
+      - uploads:/app/uploads
+    env_file: .env
+    restart: "no"
+    depends_on:
+      init-uploads:
+        condition: service_completed_successfully
+
+  app:
+    image: *image
+    pull_policy: always
+    command: pnpm start
+    env_file: .env
+    # Behind a reverse proxy on the same Docker network (Traefik, Caddy, Dokploy,
+    # Coolify)? Replace the ports block with `expose: ["3000"]` so nothing binds
+    # a host port.
+    # HOST_PORT, not PORT: `env_file: .env` passes every var into the container,
+    # and `next start` itself consumes PORT — so naming this PORT would make one
+    # variable silently change the container's internal bind port too, breaking
+    # both this mapping and the image's HEALTHCHECK (which probes :3000).
+    ports:
+      - "${HOST_PORT:-3000}:3000"
+    # Belt and braces: pin the internal port so a stray PORT in .env can never
+    # move it. `environment:` wins over `env_file:` in Compose.
+    environment:
+      PORT: 3000
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      init-uploads:
+        condition: service_completed_successfully
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  worker:
+    image: *image
+    pull_policy: always
+    command: pnpm worker:start
+    env_file: .env
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      init-uploads:
+        condition: service_completed_successfully
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    # The image's baked-in HEALTHCHECK probes GET /api/health, which this
+    # service doesn't serve — it's the job worker, not the web server.
+    healthcheck:
+      disable: true
+
+volumes:
+  # Pinned to a literal name. See docker-compose.yml for why (Compose's
+  # default volume namespacing can drift across redeploys under some deploy
+  # tools, silently orphaning old uploads). Same literal name as
+  # docker-compose.yml so switching between bundled/external Postgres keeps
+  # the same uploads.
+  uploads:
+    name: support_tool_uploads
