@@ -1,6 +1,6 @@
 name: Release
 
-# One workflow, one trigger: push to main.
+# Runs after CI succeeds on main. Never at the same time as CI.
 #
 # It looks at the "version" field in package.json. If no git tag exists for it
 # yet, this push is a release, and the workflow does all of it:
@@ -16,10 +16,22 @@ name: Release
 # So cutting a release is: bump "version" in package.json, add the matching
 # section to CHANGELOG.md, commit, push. Nothing to tag by hand.
 #
-# WHY ONE WORKFLOW RATHER THAN TWO: a git tag pushed by a workflow using the
-# built-in GITHUB_TOKEN does NOT trigger other workflows. GitHub blocks that to
-# prevent runaway recursion. Splitting "create the tag" and "build on the tag"
-# into separate files looks tidier and quietly never builds anything.
+# WHY workflow_run RATHER THAN push: on a plain `push` trigger this workflow and
+# CI start together, so a build can be published from a commit whose typecheck,
+# lint, tests or migrations are still running -- or have already failed.
+# Chaining off CI's completion makes the two strictly sequential and turns CI
+# into a real gate: a red CI publishes nothing.
+#
+# WHY ONE WORKFLOW RATHER THAN TWO for tag-then-build: a git tag pushed by a
+# workflow using the built-in GITHUB_TOKEN does NOT trigger other workflows.
+# GitHub blocks that to prevent runaway recursion. Splitting "create the tag"
+# and "build on the tag" into separate files looks tidier and quietly never
+# builds anything. That is why the tag and the build live here together.
+#
+# THE SHA GOTCHA: on a workflow_run event, github.sha and github.ref point at
+# the default branch, NOT at the commit CI actually tested. Every checkout, the
+# sha- image tag and the release target below use workflow_run.head_sha instead,
+# so a release always lands on the commit that passed.
 #
 # ONE-TIME STEP after the first successful run: a new GitHub Packages entry is
 # private, even in a public repository. Repository -> Packages -> docket ->
@@ -27,12 +39,14 @@ name: Release
 # fails for anyone who is not signed in.
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.event.workflow_run.head_branch || github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -40,6 +54,13 @@ jobs:
   check:
     name: Check for a new version
     runs-on: ubuntu-latest
+    # Only a green CI that ran on a push gets through. The `event == 'push'`
+    # half matters: CI also runs on pull_request, and a PR branch that happens
+    # to be called `main` would otherwise slip past the branch filter above.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push')
     outputs:
       version: ${{ steps.v.outputs.version }}
       major: ${{ steps.v.outputs.major }}
@@ -47,6 +68,8 @@ jobs:
       is_release: ${{ steps.v.outputs.is_release }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - id: v
         name: Compare package.json against existing tags
@@ -100,10 +123,28 @@ jobs:
     permissions:
       contents: read
       packages: write
-    env:
-      IMAGE: ghcr.io/${{ github.repository }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      # Container registries reject uppercase repository names. github.repository
+      # keeps whatever case the org was created with, so it cannot be used raw:
+      # docker/metadata-action lowercases `images:` for you, which is why the
+      # --tag values looked fine while cache-from/cache-to -- plain string
+      # interpolation, no action involved -- failed with "must be lowercase".
+      # Lowercasing once here means every consumer below is safe, including in a
+      # fork whose owner has capitals in their name.
+      - name: Resolve image name and target commit
+        id: ctx
+        run: |
+          set -euo pipefail
+          sha="${{ github.event.workflow_run.head_sha || github.sha }}"
+          {
+            echo "image=ghcr.io/${GITHUB_REPOSITORY,,}"
+            echo "sha=$sha"
+            echo "short_sha=${sha:0:7}"
+          } >> "$GITHUB_OUTPUT"
 
       # arm64 is emulated on GitHub's amd64 runners, which is why this takes
       # 10-20 minutes rather than 3.
@@ -124,12 +165,16 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.IMAGE }}
+          images: ${{ steps.ctx.outputs.image }}
           # The version ladder and `latest` only appear on a release. Every
           # build gets `main` and an immutable sha- tag.
+          #
+          # `type=sha` is spelled out as a raw tag rather than left to the
+          # action: type=sha reads github.sha, which on a workflow_run event is
+          # the default branch head, not the commit CI tested.
           tags: |
             type=raw,value=main
-            type=sha,prefix=sha-
+            type=raw,value=sha-${{ steps.ctx.outputs.short_sha }}
             type=raw,value=${{ needs.check.outputs.version }},enable=${{ needs.check.outputs.is_release == 'true' }}
             type=raw,value=${{ needs.check.outputs.minor }},enable=${{ needs.check.outputs.is_release == 'true' }}
             type=raw,value=${{ needs.check.outputs.major }},enable=${{ needs.check.outputs.is_release == 'true' }}
@@ -139,6 +184,7 @@ jobs:
             org.opencontainers.image.description=Customer support software you host yourself.
             org.opencontainers.image.licenses=MIT
             org.opencontainers.image.vendor=Stack256
+            org.opencontainers.image.revision=${{ steps.ctx.outputs.sha }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -150,12 +196,12 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           # Cache in the registry itself. It survives across runners, unlike
           # type=gha which is capped at 10 GB per repository and evicts fast.
-          cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache
-          cache-to: type=registry,ref=${{ env.IMAGE }}:buildcache,mode=max
+          cache-from: type=registry,ref=${{ steps.ctx.outputs.image }}:buildcache
+          cache-to: type=registry,ref=${{ steps.ctx.outputs.image }}:buildcache,mode=max
           provenance: true
           sbom: true
           build-args: |
-            APP_VERSION=${{ needs.check.outputs.is_release == 'true' && needs.check.outputs.version || format('main-{0}', github.sha) }}
+            APP_VERSION=${{ needs.check.outputs.is_release == 'true' && needs.check.outputs.version || format('main-{0}', steps.ctx.outputs.sha) }}
           # NEXT_PUBLIC_PUSHER_* are deliberately NOT passed. Those get compiled
           # into the browser code at build time, so baking one operator's keys
           # into a public image would hand them to everyone who downloads it.
@@ -170,6 +216,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Extract the changelog section
         id: notes
@@ -195,7 +243,7 @@ jobs:
             echo "Images for this release:"
             echo
             echo '```bash'
-            echo "docker pull ghcr.io/${{ github.repository }}:$version"
+            echo "docker pull ghcr.io/${GITHUB_REPOSITORY,,}:$version"
             echo '```'
           } >> notes.md
 
@@ -209,9 +257,10 @@ jobs:
           set -euo pipefail
           version="${{ needs.check.outputs.version }}"
           # gh creates the tag at --target as part of this, so there is no
-          # separate git tag/push step.
+          # separate git tag/push step. --target must be the commit CI tested,
+          # not github.sha, which on a workflow_run event is the branch head.
           gh release create "v$version" \
-            --target "${{ github.sha }}" \
+            --target "${{ github.event.workflow_run.head_sha || github.sha }}" \
             --title "Docket $version" \
             --notes-file notes.md
           echo "Released v$version"
@@ -224,7 +273,7 @@ jobs:
             echo
             echo "- Tag \`v$version\` created"
             echo "- Release published"
-            echo "- Image: \`ghcr.io/${{ github.repository }}:$version\` (also \`latest\`)"
+            echo "- Image: \`ghcr.io/${GITHUB_REPOSITORY,,}:$version\` (also \`latest\`)"
             echo
             echo "> [!NOTE]"
             echo "> If this is the first release, the package is still **private**."
