@@ -1,7 +1,7 @@
 # Docket, the normal way to run it. PostgreSQL included, nothing built locally.
 #
-#   curl -O https://raw.githubusercontent.com/stack256/docket/main/docker-compose.yml
-#   curl -o .env https://raw.githubusercontent.com/stack256/docket/main/.env.docker.example
+#   curl -O https://raw.githubusercontent.com/stack256org/docket/main/docker-compose.yml
+#   curl -o .env https://raw.githubusercontent.com/stack256org/docket/main/.env.docker.example
 #   # edit .env: set APP_SECRET (openssl rand -base64 36) and NEXT_PUBLIC_APP_URL
 #   docker compose up -d
 #
@@ -22,7 +22,7 @@
 # support_tool_uploads. They are pinned to literal names and survive `down`,
 # `pull` and `up -d`. Only `down -v` destroys them. See the bottom of this file.
 
-x-image: &image ${DOCKET_IMAGE:-ghcr.io/stack256/docket}:${IMAGE_TAG:-latest}
+x-image: &image ${DOCKET_IMAGE:-ghcr.io/stack256org/docket}:${IMAGE_TAG:-latest}
 
 services:
   postgres:

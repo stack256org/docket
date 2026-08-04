@@ -48,7 +48,7 @@ replies. Everything lives in your own PostgreSQL database.
 ### Running it
 
 - Prebuilt images for `linux/amd64` and `linux/arm64`, published to GitHub Packages as
-  `ghcr.io/stack256/docket`, rebuilt on every change and tagged on every release.
+  `ghcr.io/stack256org/docket`, rebuilt on every change and tagged on every release.
 - Three Compose files: prebuilt image with PostgreSQL included, build-from-source, or
   bring your own database.
 - `GET /api/health` reports database reachability and the running version, and is wired
@@ -74,5 +74,5 @@ Replying by email, satisfaction ratings after a request is closed, a spreadsheet
 of the request list itself, one-click deploy buttons, and attachments and webhooks in the
 public API. See the Roadmap in the README.
 
-[Unreleased]: https://github.com/stack256/docket/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/stack256/docket/releases/tag/v0.1.0
+[Unreleased]: https://github.com/stack256org/docket/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/stack256org/docket/releases/tag/v0.1.0

@@ -1,6 +1,6 @@
 # Docket built from your local source, with PostgreSQL included.
 #
-#   git clone https://github.com/stack256/docket && cd docket
+#   git clone https://github.com/stack256org/docket && cd docket
 #   cp .env.docker.example .env      # set APP_SECRET and NEXT_PUBLIC_APP_URL
 #   docker compose -f docker-compose.build.yml up -d
 #
