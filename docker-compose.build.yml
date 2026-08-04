@@ -1,0 +1,165 @@
+# Docket built from your local source, with PostgreSQL included.
+#
+#   git clone https://github.com/stack256/docket && cd docket
+#   cp .env.docker.example .env      # set APP_SECRET and NEXT_PUBLIC_APP_URL
+#   docker compose -f docker-compose.build.yml up -d
+#
+# Most people do NOT want this file. It compiles the whole app on your machine,
+# which on a small server is slow and memory-hungry. Use plain docker-compose.yml
+# instead, which pulls a published image.
+#
+# Two reasons to build:
+#   - you changed the code
+#   - you need the optional Pusher features, whose NEXT_PUBLIC_* values are
+#     compiled into the browser code and therefore cannot come from a shared
+#     published image
+#
+# The one-shot `migrate` service runs DB migrations + seeds before app/worker start.
+#
+# The NEXT_PUBLIC_* Pusher values are read from .env automatically through the
+# `args:` blocks below, so there is no --build-arg to pass by hand. Change one of
+# them in .env later and you MUST rebuild for it to take effect:
+#   docker compose -f docker-compose.build.yml build
+#   docker compose -f docker-compose.build.yml up -d
+# They are compiled into the browser code once, at build time, rather than read
+# live like every other setting.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: support
+      POSTGRES_DB: support_tool
+      # Pinned explicitly, NOT left to the image default. The official image's
+      # default data directory changed in Postgres 18 (to /var/lib/postgresql).
+      # If that default ever moves under us, the volume below would mount at the
+      # wrong path and the database would come up EMPTY — the old data isn't
+      # deleted, just orphaned and invisible, which looks exactly like "the
+      # upgrade wiped my database". Setting it here makes the path independent of
+      # the image tag.
+      PGDATA: /var/lib/postgresql/data
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d support_tool"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Runs as root for a fraction of a second, purely to hand the uploads volume to
+  # the unprivileged `node` user (uid 1000) that the app runs as. Exists because
+  # Docker gives a *pre-existing* named volume root ownership: any deployment
+  # created before the app went non-root has a root-owned volume, and attachment
+  # writes would start failing with EACCES after the upgrade. A fresh volume
+  # inherits ownership from the image directory and is already correct — chown is
+  # then a no-op. Either way this runs unconditionally and idempotently, so no
+  # operator has to remember a manual migration step.
+  #
+  # `alpine` rather than the app image so it needs nothing built and cannot be
+  # affected by app-level env or entrypoint changes.
+  init-uploads:
+    image: alpine:3
+    user: "0:0"
+    command: >
+      sh -c "chown -R 1000:1000 /app/uploads &&
+             echo 'uploads volume ownership set to uid/gid 1000'"
+    volumes:
+      - uploads:/app/uploads
+    restart: "no"
+
+  migrate:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID: ${NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID:-}
+        NEXT_PUBLIC_PUSHER_KEY: ${NEXT_PUBLIC_PUSHER_KEY:-}
+        NEXT_PUBLIC_PUSHER_CLUSTER: ${NEXT_PUBLIC_PUSHER_CLUSTER:-}
+    image: docket:latest
+    command: pnpm setup
+    # Mounted even though `pnpm setup` itself writes no files: this service is the
+    # natural place to `docker compose run --rm migrate <script>`, and the Zammad
+    # importer writes attachments AND its resume checkpoint into /app/uploads.
+    # Without the mount those land in the container's ephemeral layer and vanish.
+    volumes:
+      - uploads:/app/uploads
+    env_file: .env
+    depends_on:
+      init-uploads:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID: ${NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID:-}
+        NEXT_PUBLIC_PUSHER_KEY: ${NEXT_PUBLIC_PUSHER_KEY:-}
+        NEXT_PUBLIC_PUSHER_CLUSTER: ${NEXT_PUBLIC_PUSHER_CLUSTER:-}
+    image: docket:latest
+    command: pnpm start
+    env_file: .env
+    # Behind a reverse proxy on the same Docker network (Traefik, Caddy, Dokploy,
+    # Coolify)? Replace the ports block with `expose: ["3000"]` so nothing binds
+    # a host port.
+    # HOST_PORT, not PORT: `env_file: .env` passes every var into the container,
+    # and `next start` itself consumes PORT — so naming this PORT would make one
+    # variable silently change the container's internal bind port too, breaking
+    # both this mapping and the image's HEALTHCHECK (which probes :3000).
+    ports:
+      - "${HOST_PORT:-3000}:3000"
+    # Belt and braces: pin the internal port so a stray PORT in .env can never
+    # move it. `environment:` wins over `env_file:` in Compose.
+    environment:
+      PORT: 3000
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      init-uploads:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID: ${NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID:-}
+        NEXT_PUBLIC_PUSHER_KEY: ${NEXT_PUBLIC_PUSHER_KEY:-}
+        NEXT_PUBLIC_PUSHER_CLUSTER: ${NEXT_PUBLIC_PUSHER_CLUSTER:-}
+    image: docket:latest
+    command: pnpm worker:start
+    env_file: .env
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      init-uploads:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    # The image's baked-in HEALTHCHECK probes GET /api/health, which this
+    # service doesn't serve — it's the job worker, not the web server.
+    healthcheck:
+      disable: true
+
+volumes:
+  pgdata:
+    name: support_tool_pgdata
+  # Pinned to a literal name (not just "uploads") on purpose: Docker Compose
+  # namespaces unnamed volumes as "<compose-project-name>_<volume-name>". Some
+  # deploy tools (observed with Dokploy) don't keep the compose project name
+  # perfectly stable across redeploys, which silently creates a NEW, empty
+  # volume each time — old uploads aren't deleted, just orphaned and
+  # invisible to the new container. Pinning the name guarantees every deploy
+  # reattaches to the exact same volume regardless of project-name quirks.
+  uploads:
+    name: support_tool_uploads

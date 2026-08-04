@@ -1,0 +1,232 @@
+name: Release
+
+# One workflow, one trigger: push to main.
+#
+# It looks at the "version" field in package.json. If no git tag exists for it
+# yet, this push is a release, and the workflow does all of it:
+#
+#   1. builds the image for Intel and ARM
+#   2. publishes it to GitHub Packages, tagged with the version ladder + latest
+#   3. creates the v<version> git tag
+#   4. creates the GitHub Release, with notes taken from CHANGELOG.md
+#
+# If the version already has a tag, it is an ordinary push: the image is still
+# rebuilt and published as `main` and `sha-<short>`, and nothing is released.
+#
+# So cutting a release is: bump "version" in package.json, add the matching
+# section to CHANGELOG.md, commit, push. Nothing to tag by hand.
+#
+# WHY ONE WORKFLOW RATHER THAN TWO: a git tag pushed by a workflow using the
+# built-in GITHUB_TOKEN does NOT trigger other workflows. GitHub blocks that to
+# prevent runaway recursion. Splitting "create the tag" and "build on the tag"
+# into separate files looks tidier and quietly never builds anything.
+#
+# ONE-TIME STEP after the first successful run: a new GitHub Packages entry is
+# private, even in a public repository. Repository -> Packages -> docket ->
+# Package settings -> Change visibility -> Public. Until then `docker pull`
+# fails for anyone who is not signed in.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ── Is this push a release? ────────────────────────────────────────────────
+  check:
+    name: Check for a new version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      major: ${{ steps.v.outputs.major }}
+      minor: ${{ steps.v.outputs.minor }}
+      is_release: ${{ steps.v.outputs.is_release }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: v
+        name: Compare package.json against existing tags
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+
+          # Reject anything that is not plain semver, so a typo cannot create a
+          # nonsense tag that then has to be deleted from a public repository.
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::package.json version '$version' is not X.Y.Z"
+            exit 1
+          fi
+
+          major="${version%%.*}"
+          minor="${version%.*}"
+
+          # ls-remote rather than `git tag -l`: checkout does not fetch tags.
+          if git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null 2>&1; then
+            is_release=false
+            echo "v$version is already tagged. Publishing an edge build only."
+          else
+            is_release=true
+            echo "v$version has no tag yet. This push is a release."
+          fi
+
+          {
+            echo "version=$version"
+            echo "major=$major"
+            echo "minor=$minor"
+            echo "is_release=$is_release"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Require a changelog entry for a release
+        if: steps.v.outputs.is_release == 'true'
+        run: |
+          set -euo pipefail
+          version="${{ steps.v.outputs.version }}"
+          if ! grep -q "^## \[$version\]" CHANGELOG.md; then
+            echo "::error file=CHANGELOG.md::No '## [$version]' section. Every release needs notes; that section becomes the GitHub Release body."
+            exit 1
+          fi
+          echo "Found the changelog section for $version."
+
+  # ── Build and publish the image ───────────────────────────────────────────
+  image:
+    name: Build and push (amd64 + arm64)
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # arm64 is emulated on GitHub's amd64 runners, which is why this takes
+      # 10-20 minutes rather than 3.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Packages
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Derive tags and labels
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          # The version ladder and `latest` only appear on a release. Every
+          # build gets `main` and an immutable sha- tag.
+          tags: |
+            type=raw,value=main
+            type=sha,prefix=sha-
+            type=raw,value=${{ needs.check.outputs.version }},enable=${{ needs.check.outputs.is_release == 'true' }}
+            type=raw,value=${{ needs.check.outputs.minor }},enable=${{ needs.check.outputs.is_release == 'true' }}
+            type=raw,value=${{ needs.check.outputs.major }},enable=${{ needs.check.outputs.is_release == 'true' }}
+            type=raw,value=latest,enable=${{ needs.check.outputs.is_release == 'true' }}
+          labels: |
+            org.opencontainers.image.title=Docket
+            org.opencontainers.image.description=Customer support software you host yourself.
+            org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.vendor=Stack256
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Cache in the registry itself. It survives across runners, unlike
+          # type=gha which is capped at 10 GB per repository and evicts fast.
+          cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE }}:buildcache,mode=max
+          provenance: true
+          sbom: true
+          build-args: |
+            APP_VERSION=${{ needs.check.outputs.is_release == 'true' && needs.check.outputs.version || format('main-{0}', github.sha) }}
+          # NEXT_PUBLIC_PUSHER_* are deliberately NOT passed. Those get compiled
+          # into the browser code at build time, so baking one operator's keys
+          # into a public image would hand them to everyone who downloads it.
+
+  # ── Tag it and write the release ──────────────────────────────────────────
+  release:
+    name: Tag and publish the release
+    needs: [check, image]
+    if: needs.check.outputs.is_release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract the changelog section
+        id: notes
+        run: |
+          set -euo pipefail
+          version="${{ needs.check.outputs.version }}"
+          # Everything between this version's heading and the next one.
+          # index(...)==1 rather than a regex match: the heading contains
+          # "[0.1.0]", and as a regex "[0.1.0]" is a character class, which
+          # matches a single character and silently produces empty notes.
+          awk -v v="## [$version]" '
+            index($0, v) == 1 {found=1; next}
+            found && index($0, "## [") == 1 {exit}
+            found {print}
+          ' CHANGELOG.md | sed -E '/^\[[^]]+\]: https?:/d' > notes.md
+
+          if [ ! -s notes.md ]; then
+            echo "::error file=CHANGELOG.md::Extracted no release notes for $version."
+            exit 1
+          fi
+
+          {
+            echo "Images for this release:"
+            echo
+            echo '```bash'
+            echo "docker pull ghcr.io/${{ github.repository }}:$version"
+            echo '```'
+          } >> notes.md
+
+          echo "--- release notes ---"
+          cat notes.md
+
+      - name: Create the tag and the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="${{ needs.check.outputs.version }}"
+          # gh creates the tag at --target as part of this, so there is no
+          # separate git tag/push step.
+          gh release create "v$version" \
+            --target "${{ github.sha }}" \
+            --title "Docket $version" \
+            --notes-file notes.md
+          echo "Released v$version"
+
+      - name: Summary
+        run: |
+          {
+            version="${{ needs.check.outputs.version }}"
+            echo "### Released v$version"
+            echo
+            echo "- Tag \`v$version\` created"
+            echo "- Release published"
+            echo "- Image: \`ghcr.io/${{ github.repository }}:$version\` (also \`latest\`)"
+            echo
+            echo "> [!NOTE]"
+            echo "> If this is the first release, the package is still **private**."
+            echo "> Repository → Packages → docket → Package settings → Change visibility."
+          } >> "$GITHUB_STEP_SUMMARY"

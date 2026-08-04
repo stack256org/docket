@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Typecheck, lint & build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      # Blocking. The repo is at zero Biome findings — keep it there.
+      # Suppressions are allowed but must carry a written reason on the
+      # `biome-ignore` line (`grep -rn biome-ignore app components lib` to see the
+      # existing set). Prefer fixing the finding over adding another suppression.
+      - name: Lint
+        run: pnpm lint
+
+      # Pure-function tests only: signed customer tokens, API key hashing,
+      # webhook signatures and secret encryption, client IP extraction, and
+      # rich-text flattening. No database, no network, so this stays fast and
+      # cannot flake. See tests/.
+      - name: Test
+        run: pnpm test
+
+      # `next build` runs lib/env.ts validation, so it needs a syntactically
+      # valid DATABASE_URL and a 32+ char APP_SECRET. Nothing connects to a
+      # database during the build — these are placeholders only, matching the
+      # ones baked into the Dockerfile's build stage.
+      - name: Build
+        run: pnpm build
+        env:
+          DATABASE_URL: postgresql://build:build@localhost:5432/build
+          APP_SECRET: ci-placeholder-secret-not-used-at-runtime-32
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+          NEXT_TELEMETRY_DISABLED: "1"
+
+  migrations:
+    name: Migrations apply cleanly
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # Catches the failure mode that breaks self-hosters most often: a schema
+    # change committed without its generated migration, so `docker compose up`
+    # dies in the one-shot migrate service on a fresh install.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: docket_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run migrations + seed against a fresh database
+        run: pnpm setup
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/docket_ci
+          APP_SECRET: ci-placeholder-secret-not-used-at-runtime-32
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+
+      - name: Fail if the schema has uncommitted migrations
+        run: |
+          pnpm db:generate
+          if ! git diff --quiet --exit-code db/migrations; then
+            echo "::error::db/schema changed without a generated migration."
+            echo "Run 'pnpm db:generate' and commit the result in db/migrations/."
+            git diff --stat db/migrations
+            exit 1
+          fi
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/docket_ci
