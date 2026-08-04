@@ -6,14 +6,18 @@ have to create: the built-in `GITHUB_TOKEN` covers all of it.
 | Workflow | Runs on | What it does |
 |----------|---------|--------------|
 | [`ci.yml`](../.github/workflows/ci.yml) | Pull requests, pushes to `main` | Typecheck, lint, tests, build, plus migrations against a real PostgreSQL |
-| [`release.yml`](../.github/workflows/release.yml) | Pushes to `main` | Builds and publishes the image. If the version in `package.json` is new, also creates the tag and the GitHub Release. |
+| [`release.yml`](../.github/workflows/release.yml) | A **successful** `ci.yml` run on `main` | Builds and publishes the image. If the version in `package.json` is new, also creates the tag and the GitHub Release. |
+
+The two never run at the same time. `release.yml` is chained to CI's completion with a
+`workflow_run` trigger, so on a push to `main` you get CI first, then Release — and a red
+CI publishes nothing at all.
 
 ---
 
 ## Cutting a release
 
-There is no tagging step. `release.yml` reads the `version` field in `package.json` on
-every push to `main`. If no tag exists for it yet, that push is a release.
+There is no tagging step. Once CI is green on `main`, `release.yml` reads the `version`
+field in `package.json`. If no tag exists for it yet, that push is a release.
 
 ```bash
 # 1. Bump the version
@@ -116,11 +120,22 @@ a container is actually running. Edge builds report `main-<sha>` instead.
 - **A new package is private.** Covered above, and worth repeating because the symptom is
   confusing: the build goes green, the package page exists, and strangers still get
   `denied` or `manifest unknown` when they pull.
-- **Do not split the release into two workflows.** A git tag pushed by a workflow using
+- **Do not split tag-then-build into two workflows.** A git tag pushed by a workflow using
   the built-in `GITHUB_TOKEN` does **not** trigger other workflows; GitHub blocks that to
   prevent recursion. A separate "tag it" workflow feeding a separate "build on tag"
   workflow looks tidier and quietly never builds anything. That is why `release.yml` does
-  the whole thing in one run.
+  the build, the tag and the release in one run. (Chaining `release.yml` off `ci.yml` is
+  fine and different: `workflow_run` fires on a workflow *completing*, not on a pushed tag.)
+- **Never use bare `github.sha` in `release.yml`.** On a `workflow_run` event it points at
+  the head of the default branch, not at the commit CI actually tested — so under a race it
+  would tag and build the wrong commit. Every checkout, the `sha-` image tag and the release
+  `--target` use `github.event.workflow_run.head_sha` instead.
+- **Lowercase the image name.** Container registries reject uppercase repository names, and
+  `github.repository` preserves whatever case the org was created with.
+  `docker/metadata-action` quietly lowercases its `images:` input, so `--tag` values look
+  fine while a raw `${{ github.repository }}` in `cache-from`/`cache-to` fails the build with
+  `invalid reference format: repository name must be lowercase`. `release.yml` lowercases
+  once into a step output and every consumer reads that.
 - **`NEXT_PUBLIC_*` values are compiled in at build time.** The published image is built
   with the Pusher keys empty on purpose, because those values end up in the browser code
   and baking one operator's keys into a public image would hand them to everyone who

@@ -258,11 +258,17 @@ the same PR if behavior changes.
 fails if `db/schema/` changed without a generated migration. Run all three locally before
 pushing.
 
-`.github/workflows/release.yml` runs on every push to `main`. It builds and pushes
-multi-arch images to GitHub Packages (`ghcr.io/<owner>/docket`), and when the `version` in
-`package.json` has no matching git tag yet, it also creates the tag and the GitHub Release
-with notes taken from `CHANGELOG.md`. GitHub is the only service involved; `GITHUB_TOKEN`
-is the only credential. Releasing is therefore: bump the version, add the changelog
-section, push. It deliberately
+`.github/workflows/release.yml` runs **after `ci.yml` succeeds on `main`** (a `workflow_run`
+trigger, not `push`), so the two never run concurrently and a red CI publishes nothing. It
+builds and pushes multi-arch images to GitHub Packages (`ghcr.io/<owner>/docket`), and when
+the `version` in `package.json` has no matching git tag yet, it also creates the tag and the
+GitHub Release with notes taken from `CHANGELOG.md`. GitHub is the only service involved;
+`GITHUB_TOKEN` is the only credential. Releasing is therefore: bump the version, add the
+changelog section, push. It deliberately
 does **not** pass `NEXT_PUBLIC_PUSHER_*` build args — those inline into the browser bundle,
 so baking them into a public image would leak them to every user.
+
+Two traps when editing `release.yml`, both documented in `docs/releasing.md`: bare
+`github.sha` is wrong under `workflow_run` (use `github.event.workflow_run.head_sha`), and
+the image name must be lowercased before use — `github.repository` keeps the org's original
+casing and registries reject capitals.
