@@ -20,7 +20,7 @@ import {
   resolveBrandName,
   resolveLogoUrl,
 } from "@/lib/settings";
-import { isSetupComplete } from "@/lib/setup";
+import { hasAdminUser } from "@/lib/setup";
 
 // The setup check queries the database, which must happen per request — never
 // at build time (the Docker builder has no database, and a baked answer would
@@ -57,7 +57,7 @@ const TRUST = [
 export default async function HomePage() {
   // Before an admin exists, route first-time operators to the setup wizard
   // instead of the customer landing page.
-  if (!(await isSetupComplete())) {
+  if (!(await hasAdminUser())) {
     redirect("/setup");
   }
 

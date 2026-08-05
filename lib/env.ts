@@ -68,16 +68,11 @@ if (!parsed.success) {
   throw new Error("Invalid environment variables");
 }
 
-if (parsed.data.STORAGE_DRIVER === "s3" && !parsed.data.S3_BUCKET) {
-  throw new Error("STORAGE_DRIVER=s3 requires S3_BUCKET to be set.");
-}
-if (
-  parsed.data.STORAGE_DRIVER === "r2" &&
-  !(parsed.data.R2_BUCKET && parsed.data.R2_ACCOUNT_ID)
-) {
-  throw new Error(
-    "STORAGE_DRIVER=r2 requires R2_BUCKET and R2_ACCOUNT_ID to be set."
-  );
-}
+// Note: no longer validated here that STORAGE_DRIVER=s3/r2 has its required
+// bucket/account fields — the driver + its credentials can now also come
+// from the DB (see lib/integration-settings.ts's getStorageSettings()),
+// which this eager, env-only parse can't see. That check now happens lazily
+// wherever storage is actually used (lib/storage.ts), against the resolved
+// DB+env config.
 
 export const env = parsed.data;

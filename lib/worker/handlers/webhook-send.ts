@@ -1,8 +1,8 @@
 import { and, eq, sql } from "drizzle-orm";
 import type { Job } from "pg-boss";
 import { webhookDeliveries, webhookEndpoints } from "@/db/schema";
+import { decryptSecret, signWebhookPayload } from "@/lib/crypto";
 import { db } from "@/lib/db";
-import { decryptSecret, signWebhookPayload } from "@/lib/webhooks/crypto";
 import { enqueueJob } from "@/lib/worker/enqueue";
 import { JOB_NAMES, type WebhookSendPayload } from "@/lib/worker/job-types";
 

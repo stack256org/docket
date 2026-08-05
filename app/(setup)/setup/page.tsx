@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { SetupWizard } from "@/app/(setup)/_components/setup-wizard";
-import { isSetupComplete } from "@/lib/setup";
+import { getVerifiedSession } from "@/lib/authz";
+import { hasAdminUser, isSetupComplete } from "@/lib/setup";
 
 export const metadata = {
   title: "Set up",
@@ -12,10 +13,27 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function SetupPage() {
-  // Once the first admin exists this wizard is done for good — send anyone who
+  // Once the wizard has actually been finished (its last step called
+  // POST /api/setup/finish), this page is done for good — send anyone who
   // lands here to the normal sign-in page.
   if (await isSetupComplete()) {
     redirect("/login");
+  }
+
+  // The admin account is created a step before the wizard finishes (during
+  // the Account step). If it already exists here, the wizard's later,
+  // client-only step state was lost — most likely a page reload while
+  // sitting on the Integrations step. Resume there instead of restarting
+  // account creation.
+  if (await hasAdminUser()) {
+    const session = await getVerifiedSession();
+    if (!session) {
+      // No way to resume the (session-gated) Integrations forms. Send them
+      // to sign back in — they can finish integrations from Admin →
+      // Integrations afterward.
+      redirect("/login");
+    }
+    return <SetupWizard initialStep="integrations" />;
   }
 
   return <SetupWizard />;

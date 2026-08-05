@@ -15,15 +15,43 @@ import {
 } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { GoogleOAuthSettingsForm } from "@/app/(admin)/admin/integrations/_components/google-oauth-settings-form";
+import { PusherBeamsSettingsForm } from "@/app/(admin)/admin/integrations/_components/pusher-beams-settings-form";
+import { PusherChannelsSettingsForm } from "@/app/(admin)/admin/integrations/_components/pusher-channels-settings-form";
+import { SmtpSettingsForm } from "@/app/(admin)/admin/integrations/_components/smtp-settings-form";
+import { StorageSettingsForm } from "@/app/(admin)/admin/integrations/_components/storage-settings-form";
 import { ThemeProvider, useTheme } from "@/components/theme/theme-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PRODUCT_NAME } from "@/config/platform";
 import { authClient } from "@/lib/auth-client";
+import type { IntegrationSettingsSummary } from "@/lib/integration-settings";
 import { cn } from "@/lib/utils";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// This step always runs immediately after the admin account is created, so
+// nothing in integration_settings has ever been saved yet — no need to fetch
+// current values like /admin/integrations does, every field starts blank.
+const EMPTY_INTEGRATION_SETTINGS: IntegrationSettingsSummary = {
+  smtp: { host: "", port: 587, user: "", from: "", hasPassword: false },
+  google: { clientId: "", hasClientSecret: false },
+  pusherBeams: { instanceId: "", hasSecretKey: false },
+  pusherChannels: { appId: "", key: "", cluster: "", hasSecret: false },
+  storage: {
+    driver: "local",
+    s3Bucket: "",
+    s3Region: "",
+    r2Bucket: "",
+    r2AccountId: "",
+    awsAccessKeyId: "",
+    hasAwsSecretAccessKey: false,
+    r2AccessKeyId: "",
+    hasR2SecretAccessKey: false,
+    publicBaseUrl: "",
+  },
+};
 
 const THEME_OPTIONS = [
   { id: "default", name: "Default", color: "#384959" },
@@ -40,23 +68,34 @@ const APPEARANCE_OPTIONS = [
   { id: "auto" as const, label: "System", icon: MonitorIcon },
 ];
 
-const STEPS = ["Welcome", "Account", "Finish"];
+const STEPS = ["Welcome", "Account", "Integrations"];
 
-export function SetupWizard() {
+export function SetupWizard({
+  initialStep,
+}: {
+  // "integrations" resumes a wizard whose admin account already exists (the
+  // page was reloaded, or similar, while the client-only step state was on
+  // Integrations) — see app/(setup)/setup/page.tsx.
+  initialStep?: "integrations";
+}) {
   // The wizard renders its own ThemeProvider so the appearance step is a live
   // preview — the whole card recolors as you pick a theme / light-dark mode.
   return (
     <ThemeProvider initialAppearanceMode="light" initialTheme="default">
-      <WizardInner />
+      <WizardInner initialStep={initialStep} />
     </ThemeProvider>
   );
 }
 
-function WizardInner() {
+function WizardInner({ initialStep }: { initialStep?: "integrations" }) {
   const router = useRouter();
   const { currentTheme, appearanceMode, setTheme, setAppearance } = useTheme();
 
-  const [step, setStep] = React.useState(0);
+  // step: 0 welcome, 1 account (form, or the "creating" spinner below it),
+  // 2 integrations (only reached once the admin account exists).
+  const [step, setStep] = React.useState(
+    initialStep === "integrations" ? 2 : 0
+  );
   const [brandName, setBrandName] = React.useState("");
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
@@ -64,7 +103,7 @@ function WizardInner() {
   const [confirm, setConfirm] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [submitting, setSubmitting] = React.useState(false);
+  const [creating, setCreating] = React.useState(false);
 
   function handleAccountSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -89,8 +128,7 @@ function WizardInner() {
   }
 
   async function submitSetup() {
-    setSubmitting(true);
-    setStep(2);
+    setCreating(true);
     try {
       const res = await fetch("/api/setup", {
         method: "POST",
@@ -108,8 +146,7 @@ function WizardInner() {
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
         setError(data.error ?? "Something went wrong. Please try again.");
-        setSubmitting(false);
-        setStep(1);
+        setCreating(false);
         return;
       }
 
@@ -122,23 +159,40 @@ function WizardInner() {
         // localStorage may be unavailable (private mode) — non-fatal.
       }
 
-      // Auto sign-in with the credentials just created, then land on the
-      // dashboard — no separate login step needed.
+      // Auto sign-in with the credentials just created, so the (session-gated)
+      // Integrations forms below can save. Deliberately no `callbackURL` here:
+      // Better Auth's sign-in/email response sets `redirect: true` whenever a
+      // callbackURL is passed, and the client SDK's redirect plugin reacts to
+      // that with an immediate `window.location.href` navigation — a full
+      // page nav straight past the Integrations step, before setStep(2)
+      // below ever runs. We navigate ourselves, once the wizard actually
+      // finishes (see finish()).
       const signIn = await authClient.signIn.email({
         email: email.trim(),
         password,
-        callbackURL: "/post-auth",
       });
       if (signIn.error) {
         router.push("/login");
         return;
       }
-      router.push("/post-auth");
+      setCreating(false);
+      setStep(2);
     } catch {
       setError("Something went wrong. Please try again.");
-      setSubmitting(false);
-      setStep(1);
+      setCreating(false);
     }
+  }
+
+  async function finish() {
+    // Best-effort: even if this fails, still proceed to the dashboard rather
+    // than trap the user on the wizard — they can be re-prompted to finish
+    // integrations from Admin → Integrations later.
+    try {
+      await fetch("/api/setup/finish", { method: "POST" });
+    } catch {
+      // Network error — ignore, see comment above.
+    }
+    router.push("/post-auth");
   }
 
   return (
@@ -175,7 +229,12 @@ function WizardInner() {
         ))}
       </div>
 
-      <div className="w-full max-w-md rounded-xl border border-border bg-card shadow-sm p-6 sm:p-8">
+      <div
+        className={cn(
+          "w-full rounded-xl border border-border bg-card shadow-sm p-6 sm:p-8",
+          step === 2 ? "max-w-2xl" : "max-w-md"
+        )}
+      >
         {step === 0 && (
           <WelcomeStep
             appearanceMode={appearanceMode}
@@ -188,7 +247,19 @@ function WizardInner() {
           />
         )}
 
-        {step === 1 && (
+        {step === 1 && creating && (
+          <div className="flex flex-col items-center text-center py-6">
+            <CircleNotchIcon className="size-8 text-primary animate-spin" />
+            <h1 className="text-lg font-semibold text-foreground mt-4">
+              Setting up your workspace…
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Creating your admin account and signing you in.
+            </p>
+          </div>
+        )}
+
+        {step === 1 && !creating && (
           <form className="space-y-5" onSubmit={handleAccountSubmit}>
             <div className="text-center">
               <h1 className="text-xl font-semibold text-foreground">
@@ -293,7 +364,7 @@ function WizardInner() {
                 <ArrowLeftIcon className="size-4" />
                 Previous
               </Button>
-              <Button className="gap-1.5" disabled={submitting} type="submit">
+              <Button className="gap-1.5" disabled={creating} type="submit">
                 Create account
                 <ArrowRightIcon className="size-4" />
               </Button>
@@ -301,37 +372,7 @@ function WizardInner() {
           </form>
         )}
 
-        {step === 2 && (
-          <div className="flex flex-col items-center text-center py-6">
-            {error ? (
-              <>
-                <p className="text-sm text-destructive bg-destructive/10 rounded-md px-3 py-2">
-                  {error}
-                </p>
-                <Button
-                  className="mt-4"
-                  onClick={() => {
-                    setError(null);
-                    setStep(1);
-                  }}
-                  variant="outline"
-                >
-                  Go back
-                </Button>
-              </>
-            ) : (
-              <>
-                <CircleNotchIcon className="size-8 text-primary animate-spin" />
-                <h1 className="text-lg font-semibold text-foreground mt-4">
-                  Setting up your workspace…
-                </h1>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Creating your admin account and signing you in.
-                </p>
-              </>
-            )}
-          </div>
-        )}
+        {step === 2 && <IntegrationsStep onFinish={finish} />}
       </div>
 
       <p className="text-xs text-muted-foreground mt-6 flex items-center gap-1.5">
@@ -464,6 +505,53 @@ function WelcomeStep({
       <div className="flex justify-end pt-1">
         <Button className="gap-1.5" onClick={onNext} type="button">
           Next
+          <ArrowRightIcon className="size-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function IntegrationsStep({ onFinish }: { onFinish: () => void }) {
+  return (
+    <div className="space-y-5">
+      <div className="text-center">
+        <h1 className="text-xl font-semibold text-foreground">
+          Connect your integrations
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          All optional — {PRODUCT_NAME} works without any of these. Skip now and
+          add them later from Admin → Integrations.
+        </p>
+      </div>
+
+      <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1 -mr-1">
+        <SmtpSettingsForm
+          collapsible
+          defaultOpen
+          initial={EMPTY_INTEGRATION_SETTINGS.smtp}
+        />
+        <GoogleOAuthSettingsForm
+          collapsible
+          initial={EMPTY_INTEGRATION_SETTINGS.google}
+        />
+        <PusherChannelsSettingsForm
+          collapsible
+          initial={EMPTY_INTEGRATION_SETTINGS.pusherChannels}
+        />
+        <PusherBeamsSettingsForm
+          collapsible
+          initial={EMPTY_INTEGRATION_SETTINGS.pusherBeams}
+        />
+        <StorageSettingsForm
+          collapsible
+          initial={EMPTY_INTEGRATION_SETTINGS.storage}
+        />
+      </div>
+
+      <div className="flex justify-end pt-1">
+        <Button className="gap-1.5" onClick={onFinish} type="button">
+          Continue to dashboard
           <ArrowRightIcon className="size-4" />
         </Button>
       </div>
