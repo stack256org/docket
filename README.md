@@ -8,8 +8,8 @@ People write to you when something goes wrong. Docket puts every one of those me
 one place, so nothing slips through and your whole team can see what is happening. It runs
 on your own server, which means your customers' messages stay with you.
 
-[![CI](https://github.com/stack256/docket/actions/workflows/ci.yml/badge.svg)](https://github.com/stack256/docket/actions/workflows/ci.yml)
-[![Release](https://github.com/stack256/docket/actions/workflows/release.yml/badge.svg)](https://github.com/stack256/docket/actions/workflows/release.yml)
+[![CI](https://github.com/stack256org/docket/actions/workflows/ci.yml/badge.svg)](https://github.com/stack256org/docket/actions/workflows/ci.yml)
+[![Release](https://github.com/stack256org/docket/actions/workflows/release.yml/badge.svg)](https://github.com/stack256org/docket/actions/workflows/release.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 [Quick Start](#quick-start) · [Running it](#running-it-with-docker) · [Public API](#public-api) · [Docs](docs/)
@@ -149,8 +149,8 @@ Check you have a recent Docker with `docker compose version`. The commands below
 **1. Get the two files.**
 
 ```bash
-curl -O https://raw.githubusercontent.com/stack256/docket/main/docker-compose.yml
-curl -o .env https://raw.githubusercontent.com/stack256/docket/main/.env.docker.example
+curl -O https://raw.githubusercontent.com/stack256org/docket/main/docker-compose.yml
+curl -o .env https://raw.githubusercontent.com/stack256org/docket/main/.env.docker.example
 ```
 
 **2. Open `.env` and set two things.** Everything else has a working default.
@@ -166,8 +166,8 @@ curl -o .env https://raw.githubusercontent.com/stack256/docket/main/.env.docker.
 docker compose up -d
 ```
 
-This downloads `ghcr.io/stack256/docket` from
-[GitHub Packages](https://github.com/stack256/docket/pkgs/container/docket), then starts
+This downloads `ghcr.io/stack256org/docket` from
+[GitHub Packages](https://github.com/stack256org/docket/pkgs/container/docket), then starts
 PostgreSQL, prepares the database, and leaves the app and the worker running. The first
 run takes a minute or two while the image downloads.
 
@@ -204,7 +204,7 @@ For local development without Docker.
 you would rather not install Postgres, `pnpm db:local` starts a bundled one.
 
 ```bash
-git clone https://github.com/stack256/docket
+git clone https://github.com/stack256org/docket
 cd docket
 pnpm install
 cp .env.example .env
@@ -310,8 +310,8 @@ one-off **migrate** step that prepares the database before the other two start.
 ### The normal way
 
 ```bash
-curl -O https://raw.githubusercontent.com/stack256/docket/main/docker-compose.yml
-curl -o .env https://raw.githubusercontent.com/stack256/docket/main/.env.docker.example
+curl -O https://raw.githubusercontent.com/stack256org/docket/main/docker-compose.yml
+curl -o .env https://raw.githubusercontent.com/stack256org/docket/main/.env.docker.example
 # Set APP_SECRET and NEXT_PUBLIC_APP_URL. DATABASE_URL is already filled in.
 docker compose up -d
 ```
@@ -327,10 +327,10 @@ change, expect rough edges), and a fixed `sha-<short>` per build. Each carries b
 both Intel and ARM machines:
 
 ```bash
-docker pull ghcr.io/stack256/docket:latest
+docker pull ghcr.io/stack256org/docket:latest
 ```
 
-Images come from [GitHub Packages](https://github.com/stack256/docket/pkgs/container/docket).
+Images come from [GitHub Packages](https://github.com/stack256org/docket/pkgs/container/docket).
 No account is needed to download them, and there are no rate limits.
 
 ### With your own database
@@ -338,8 +338,8 @@ No account is needed to download them, and there are no rate limits.
 Same as above but with no bundled PostgreSQL, so you point it at yours.
 
 ```bash
-curl -O https://raw.githubusercontent.com/stack256/docket/main/docker-compose.external-db.yml
-curl -o .env https://raw.githubusercontent.com/stack256/docket/main/.env.docker.example
+curl -O https://raw.githubusercontent.com/stack256org/docket/main/docker-compose.external-db.yml
+curl -o .env https://raw.githubusercontent.com/stack256org/docket/main/.env.docker.example
 # Replace DATABASE_URL with your own connection string.
 docker compose -f docker-compose.external-db.yml up -d
 ```
@@ -351,7 +351,7 @@ are compiled into the browser code and so cannot come from a shared prebuilt ima
 compiles the whole app, which on a small server is slow.
 
 ```bash
-git clone https://github.com/stack256/docket && cd docket
+git clone https://github.com/stack256org/docket && cd docket
 cp .env.docker.example .env
 # Set APP_SECRET and NEXT_PUBLIC_APP_URL.
 docker compose -f docker-compose.build.yml up -d
@@ -439,7 +439,7 @@ work. [docs/backup-and-restore.md](docs/backup-and-restore.md) has the commands.
 ### Anything that runs a container
 
 Coolify, Dokploy, CapRover, Portainer, Kubernetes, Docker Swarm, ECS. Point them at
-`ghcr.io/stack256/docket` and run three services from the same image:
+`ghcr.io/stack256org/docket` and run three services from the same image:
 
 | Service | Command | Notes |
 |---------|---------|-------|
@@ -656,7 +656,7 @@ Known gaps, roughly in the order people ask for them:
 - **More polish on small screens** for the two-column request view.
 
 Want one of these, or something not listed?
-[Open an issue](https://github.com/stack256/docket/issues/new/choose) describing the
+[Open an issue](https://github.com/stack256org/docket/issues/new/choose) describing the
 problem you are trying to solve. That is what decides priority.
 
 ---

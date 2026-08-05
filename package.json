@@ -5,13 +5,13 @@
   "type": "module",
   "license": "MIT",
   "author": "Stack256 <bhadanirohit1@gmail.com>",
-  "homepage": "https://github.com/stack256/docket#readme",
+  "homepage": "https://github.com/stack256org/docket#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/stack256/docket.git"
+    "url": "git+https://github.com/stack256org/docket.git"
   },
   "bugs": {
-    "url": "https://github.com/stack256/docket/issues"
+    "url": "https://github.com/stack256org/docket/issues"
   },
   "keywords": [
     "support",

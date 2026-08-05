@@ -74,35 +74,42 @@ Check it from a signed-out shell:
 
 ```bash
 docker logout ghcr.io
-docker pull ghcr.io/stack256/docket:main
+docker pull ghcr.io/stack256org/docket:main
 ```
 
 ### 2. Check the owner name matches
 
-The workflow itself needs no editing, because it uses `github.repository`. Three other
-places hardcode `stack256`:
+The workflow itself needs no editing, because it uses `github.repository`. Everywhere else
+the owner is written out as `stack256org`, so a fork under a different name has to update
+it. `grep -rIn stack256org .` is the reliable check; at the time of writing that is:
 
 | File | What to check |
 |------|---------------|
-| [`docker-compose.yml`](../docker-compose.yml), [`docker-compose.external-db.yml`](../docker-compose.external-db.yml) | the `x-image` default |
-| [`README.md`](../README.md) | badge URLs and the `ghcr.io/...` examples |
+| [`docker-compose.yml`](../docker-compose.yml), [`docker-compose.external-db.yml`](../docker-compose.external-db.yml), [`docker-compose.build.yml`](../docker-compose.build.yml) | the `x-image` default |
+| [`README.md`](../README.md) | badge URLs, `git clone`, the `curl -O` quick-starts and the `ghcr.io/...` examples |
 | [`Dockerfile`](../Dockerfile) | the OCI `org.opencontainers.image.*` label URLs |
+| [`package.json`](../package.json) | `repository`, `bugs` and `homepage` |
+| [`SECURITY.md`](../SECURITY.md), [`.github/ISSUE_TEMPLATE/`](../.github/ISSUE_TEMPLATE/) | advisory and issue links |
+| [`CHANGELOG.md`](../CHANGELOG.md) | the compare/tag link definitions at the foot |
+
+The owner must also be **lowercase** in every `ghcr.io/...` reference. Container registries
+reject capitals, which is what the `x-image` defaults and the `docker pull` examples feed.
 
 ---
 
 ## Checking a published release
 
 ```bash
-docker pull ghcr.io/stack256/docket:0.2.0
-docker image inspect ghcr.io/stack256/docket:0.2.0 --format '{{.Config.User}}'
+docker pull ghcr.io/stack256org/docket:0.2.0
+docker image inspect ghcr.io/stack256org/docket:0.2.0 --format '{{.Config.User}}'
 # expect: node
 
 # both architectures present?
-docker buildx imagetools inspect ghcr.io/stack256/docket:0.2.0 | grep -A1 Platform
+docker buildx imagetools inspect ghcr.io/stack256org/docket:0.2.0 | grep -A1 Platform
 
 # end to end, on the published image
-curl -O https://raw.githubusercontent.com/stack256/docket/main/docker-compose.yml
-curl -o .env https://raw.githubusercontent.com/stack256/docket/main/.env.docker.example
+curl -O https://raw.githubusercontent.com/stack256org/docket/main/docker-compose.yml
+curl -o .env https://raw.githubusercontent.com/stack256org/docket/main/.env.docker.example
 # set APP_SECRET, then:
 IMAGE_TAG=0.2.0 docker compose up -d
 curl -s localhost:3000/api/health

@@ -82,8 +82,8 @@ CMD ["pnpm", "start"]
 # the package back to this repository.
 LABEL org.opencontainers.image.title="Docket" \
       org.opencontainers.image.description="Open-source, self-hosted customer support ticketing system." \
-      org.opencontainers.image.url="https://github.com/stack256/docket" \
-      org.opencontainers.image.source="https://github.com/stack256/docket" \
-      org.opencontainers.image.documentation="https://github.com/stack256/docket#readme" \
+      org.opencontainers.image.url="https://github.com/stack256org/docket" \
+      org.opencontainers.image.source="https://github.com/stack256org/docket" \
+      org.opencontainers.image.documentation="https://github.com/stack256org/docket#readme" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.vendor="Stack256"
