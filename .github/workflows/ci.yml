@@ -26,6 +26,15 @@ jobs:
           node-version-file: .node-version
           cache: pnpm
 
+      # Before `pnpm install`, deliberately: the script is dependency-free plain
+      # Node, and a stale README is a two-second failure that should not wait
+      # behind an install and a full Next build. Catches the drift that shipped
+      # a `1` / `1.4` / `1.4.2` tag ladder in the README while 0.1.0 was the
+      # only release that existed — a customer copying that got "manifest
+      # unknown" and reasonably read it as a broken registry.
+      - name: README is in step with the version
+        run: pnpm docs:check
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
