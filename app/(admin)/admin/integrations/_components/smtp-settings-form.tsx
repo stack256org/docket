@@ -25,6 +25,10 @@ export function SmtpSettingsForm({ initial, collapsible, defaultOpen }: Props) {
   const [hasPassword, setHasPassword] = useState(initial.hasPassword);
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [lastTestedAt, setLastTestedAt] = useState(initial.lastTestedAt);
+  const [lastTestOk, setLastTestOk] = useState(initial.lastTestOk);
+  const [lastTestError, setLastTestError] = useState(initial.lastTestError);
 
   const configured = !!(host && user && from && hasPassword);
 
@@ -34,20 +38,23 @@ export function SmtpSettingsForm({ initial, collapsible, defaultOpen }: Props) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ smtp: body }),
     });
-    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    const data = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      tested?: { smtp?: { message: string; ok: boolean } };
+    };
     if (!res.ok) {
       toast.error(data.error ?? "Failed to save.");
-      return false;
+      return null;
     }
     toast.success(successMessage);
-    return true;
+    return data;
   }
 
   async function save() {
     setSaving(true);
     try {
       const portNum = Number.parseInt(port, 10);
-      const ok = await patch(
+      const data = await patch(
         {
           host,
           port: Number.isFinite(portNum) ? portNum : undefined,
@@ -57,11 +64,18 @@ export function SmtpSettingsForm({ initial, collapsible, defaultOpen }: Props) {
         },
         "SMTP settings saved."
       );
-      if (ok) {
+      if (data) {
         if (pass) {
           setHasPassword(true);
         }
         setPass("");
+        const tested = data.tested?.smtp;
+        setLastTestedAt(tested ? new Date().toISOString() : null);
+        setLastTestOk(tested ? tested.ok : null);
+        setLastTestError(tested && !tested.ok ? tested.message : null);
+        if (tested && !tested.ok) {
+          toast.error(`Saved, but connection test failed: ${tested.message}`);
+        }
       }
     } catch {
       toast.error("Network error. Please try again.");
@@ -73,22 +87,59 @@ export function SmtpSettingsForm({ initial, collapsible, defaultOpen }: Props) {
   async function remove() {
     setRemoving(true);
     try {
-      const ok = await patch(
+      const data = await patch(
         { host: "", port: 587, user: "", from: "", pass: "" },
         "SMTP settings removed."
       );
-      if (ok) {
+      if (data) {
         setHost("");
         setPort("587");
         setUser("");
         setFrom("");
         setPass("");
         setHasPassword(false);
+        setLastTestedAt(null);
+        setLastTestOk(null);
+        setLastTestError(null);
       }
     } catch {
       toast.error("Network error. Please try again.");
     } finally {
       setRemoving(false);
+    }
+  }
+
+  async function testConnection() {
+    setTesting(true);
+    try {
+      const portNum = Number.parseInt(port, 10);
+      const res = await fetch("/api/admin/integration-settings/smtp/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          host,
+          port: Number.isFinite(portNum) ? portNum : undefined,
+          user,
+          pass: pass || undefined,
+        }),
+      });
+      const result = (await res.json().catch(() => ({}))) as {
+        message?: string;
+        ok?: boolean;
+      };
+      const ok = res.ok && !!result.ok;
+      setLastTestedAt(new Date().toISOString());
+      setLastTestOk(ok);
+      setLastTestError(ok ? null : (result.message ?? "Test failed."));
+      if (ok) {
+        toast.success(result.message ?? "Connection succeeded.");
+      } else {
+        toast.error(result.message ?? "Connection test failed.");
+      }
+    } catch {
+      toast.error("Network error. Please try again.");
+    } finally {
+      setTesting(false);
     }
   }
 
@@ -100,9 +151,12 @@ export function SmtpSettingsForm({ initial, collapsible, defaultOpen }: Props) {
       description="Send ticket notifications, magic links, and password resets. Without it, emails are logged instead of delivered."
       onRemove={remove}
       onSave={save}
+      onTest={testConnection}
       removing={removing}
       saving={saving}
+      testing={testing}
       title="Email (SMTP)"
+      verification={{ lastTestedAt, lastTestOk, lastTestError }}
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="space-y-1.5 sm:col-span-2">

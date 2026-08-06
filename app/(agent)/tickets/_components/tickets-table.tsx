@@ -65,12 +65,12 @@ function SortIcon({
   order: "asc" | "desc";
 }) {
   if (!active) {
-    return <CaretUpDownIcon className="size-3.5 text-muted-foreground/50" />;
+    return <CaretUpDownIcon className="size-3.5 text-base-content-muted/50" />;
   }
   return order === "asc" ? (
-    <SortAscendingIcon className="size-3.5 text-foreground" />
+    <SortAscendingIcon className="size-3.5 text-base-content" />
   ) : (
-    <SortDescendingIcon className="size-3.5 text-foreground" />
+    <SortDescendingIcon className="size-3.5 text-base-content" />
   );
 }
 
@@ -86,7 +86,7 @@ interface ColorRow {
 }
 
 export function TicketsTable({
-  rows,
+  rows: initialRows,
   statusMap,
   categoryMap,
   priorityMap,
@@ -114,9 +114,18 @@ export function TicketsTable({
   const visibleColumns = columnPrefs.filter((c) => c.visible);
   const router = useRouter();
   const searchParams = useSearchParams();
+  // Seeded from the server prop but never re-synced to it — see the note above
+  // `runBulk`. A real navigation remounts this component (page.tsx keys the
+  // Suspense boundary on `params`), re-seeding it from fresh data naturally.
+  const [rows, setRows] = useState(initialRows);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [closeConfirm, setCloseConfirm] = useState<{
+    rowId: string;
+    status: string;
+  } | null>(null);
+  const [closingBusy, setClosingBusy] = useState(false);
 
   const activeSort = searchParams.get("sort") === "id" ? "id" : "updatedAt";
   const activeOrder = searchParams.get("order") === "asc" ? "asc" : "desc";
@@ -131,10 +140,9 @@ export function TicketsTable({
     router.push(`/tickets?${params.toString()}`);
   }
 
-  /** Selection survives bulk updates and `router.refresh()`, but a ticket can
-   * drop out of the current result set (a status change that no longer matches
-   * the active filter, a page change). Derive the effective selection from the
-   * rows actually on screen so counts and bulk payloads never include ghosts. */
+  /** Derives the effective selection from the rows actually on screen, so counts
+   * and bulk payloads never include ghosts from a prior page/filter view.
+   * Defensive — real navigation already clears the selection. */
   const selectedIds = rows.filter((r) => selected.has(r.id)).map((r) => r.id);
   const selectedCount = selectedIds.length;
   const allSelected = rows.length > 0 && selectedCount === rows.length;
@@ -156,7 +164,40 @@ export function TicketsTable({
     });
   }
 
-  async function runBulk(body: object) {
+  /** Applies a bulk action to the matching local rows in place, rather than
+   * waiting on a server refresh that could re-sort or filter them out from under
+   * the user — so the action visibly lands on the tickets they picked. */
+  function patchSelectedRows(action: string, value: string | null) {
+    setRows((prev) =>
+      prev.map((r) => {
+        if (!selected.has(r.id)) {
+          return r;
+        }
+        switch (action) {
+          case "status":
+            return value ? { ...r, status: value } : r;
+          case "priority":
+            return value ? { ...r, priority: value } : r;
+          case "assign": {
+            const agent = value ? agents.find((a) => a.id === value) : null;
+            return {
+              ...r,
+              assignedAgentId: value,
+              assignedAgentName: agent ? (agent.name ?? agent.email) : null,
+            };
+          }
+          case "tag":
+            return value && !r.tags.includes(value)
+              ? { ...r, tags: [...r.tags, value] }
+              : r;
+          default:
+            return r;
+        }
+      })
+    );
+  }
+
+  async function runBulk(body: { action: string; value: string | null }) {
     setBusy(true);
     try {
       const res = await fetch("/api/tickets/bulk", {
@@ -174,8 +215,10 @@ export function TicketsTable({
       toast.success(
         `Updated ${selectedCount} ticket${selectedCount === 1 ? "" : "s"}.`
       );
-      // Keep the selection so several bulk actions can be chained on the same
-      // tickets — only a delete clears it.
+      patchSelectedRows(body.action, body.value);
+      // Keep the selection so bulk actions can be chained on the same tickets;
+      // only a delete clears it. Still refresh so server-rendered parts (total
+      // count) stay accurate — the table ignores it for `rows`, per above.
       router.refresh();
     } catch {
       toast.error("Network error.");
@@ -202,6 +245,7 @@ export function TicketsTable({
       toast.success(
         `Deleted ${selectedCount} ticket${selectedCount === 1 ? "" : "s"}.`
       );
+      setRows((prev) => prev.filter((r) => !selected.has(r.id)));
       setSelected(new Set());
       setDeleteOpen(false);
       router.refresh();
@@ -212,16 +256,51 @@ export function TicketsTable({
     }
   }
 
+  async function handleConfirmClose() {
+    if (!closeConfirm) {
+      return;
+    }
+    setClosingBusy(true);
+    try {
+      const res = await fetch(`/api/tickets/${closeConfirm.rowId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: closeConfirm.status }),
+      });
+      const data = (await res.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      if (!res.ok) {
+        toast.error(data?.error ?? "Update failed.");
+        return;
+      }
+      toast.success("Ticket closed. The customer has been notified.");
+      setRows((prev) =>
+        prev.map((r) =>
+          r.id === closeConfirm.rowId
+            ? { ...r, status: closeConfirm.status }
+            : r
+        )
+      );
+      setCloseConfirm(null);
+      router.refresh();
+    } catch {
+      toast.error("Network error.");
+    } finally {
+      setClosingBusy(false);
+    }
+  }
+
   return (
     <>
       {/* Bulk action bar — admin only, shown when rows are selected */}
       {isAdmin && someSelected && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5">
-          <span className="text-sm font-medium text-foreground">
+          <span className="text-sm font-medium text-base-content">
             {selectedCount} selected
           </span>
           <button
-            className="text-xs text-muted-foreground hover:text-foreground"
+            className="text-xs text-base-content-muted hover:text-base-content"
             onClick={() => setSelected(new Set())}
             type="button"
           >
@@ -299,22 +378,34 @@ export function TicketsTable({
       )}
 
       {/* Table */}
-      <div className="bg-card rounded-xl border border-border shadow-soft overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="bg-base-100 rounded-xl border border-base-300 shadow-soft overflow-clip">
+        {/* overflow-y-clip, not "auto" — a plain scroll container here would
+            intercept the sticky header's positioning before it reaches the
+            page's real scrolling ancestor. */}
+        <div className="overflow-x-auto overflow-y-clip">
           <table className="w-full table-fixed text-xs">
             <thead>
-              <tr className="border-b border-border bg-accent/50">
+              <tr className="sticky top-0 z-10 border-b border-base-300 bg-base-300">
                 {isAdmin && (
-                  <th className="sticky left-0 z-20 w-10 bg-accent px-4 py-3">
+                  <th className="sticky left-0 z-20 w-10 bg-base-300 px-4 py-3">
                     <Checkbox
+                      // The primitive's resting border is `base-300`, which is
+                      // exactly this header cell's fill — invisible. Lift it to
+                      // a muted content tier so the box reads against base-300.
                       checked={allSelected}
+                      className="border-base-content/30"
                       onCheckedChange={toggleAll}
+                      ref={(el) => {
+                        if (el) {
+                          el.indeterminate = selectedCount > 0 && !allSelected;
+                        }
+                      }}
                     />
                   </th>
                 )}
-                <th className="w-16 px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                <th className="w-16 px-4 py-3 text-left text-xs font-medium text-base-content-muted uppercase tracking-wide">
                   <button
-                    className="inline-flex items-center gap-1 hover:text-foreground"
+                    className="inline-flex items-center gap-1 hover:text-base-content"
                     onClick={() => toggleSort("id")}
                     type="button"
                   >
@@ -325,17 +416,17 @@ export function TicketsTable({
                     />
                   </button>
                 </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide w-56">
+                <th className="text-left px-4 py-3 text-xs font-medium text-base-content-muted uppercase tracking-wide w-56">
                   Subject
                 </th>
                 {visibleColumns.map((c) => (
                   <th
-                    className={`text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide ${COLUMN_META[c.id].width}`}
+                    className={`text-left px-4 py-3 text-xs font-medium text-base-content-muted uppercase tracking-wide ${COLUMN_META[c.id].width}`}
                     key={c.id}
                   >
                     {c.id === "updatedAt" ? (
                       <button
-                        className="inline-flex items-center gap-1 hover:text-foreground"
+                        className="inline-flex items-center gap-1 hover:text-base-content"
                         onClick={() => toggleSort("updatedAt")}
                         type="button"
                       >
@@ -352,7 +443,7 @@ export function TicketsTable({
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/60">
+            <tbody className="divide-y divide-base-300/60">
               {rows.map((row) => (
                 <TicketRow
                   agents={agents}
@@ -360,6 +451,9 @@ export function TicketsTable({
                   isAdmin={isAdmin}
                   key={row.id}
                   listQuery={listQuery}
+                  onRequestClose={(status) =>
+                    setCloseConfirm({ rowId: row.id, status })
+                  }
                   onToggleSelect={() => toggleOne(row.id)}
                   priorities={priorities}
                   priorityMap={priorityMap}
@@ -379,11 +473,8 @@ export function TicketsTable({
       <Dialog onOpenChange={setDeleteOpen} open={deleteOpen}>
         <DialogContent>
           <DialogHeader>
-            <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-destructive/10">
-              <WarningCircleIcon
-                className="size-6 text-destructive"
-                weight="fill"
-              />
+            <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-error/10">
+              <WarningCircleIcon className="size-6 text-error" weight="fill" />
             </div>
             <DialogTitle className="text-center">
               Delete {selectedCount} ticket{selectedCount === 1 ? "" : "s"}?
@@ -409,6 +500,36 @@ export function TicketsTable({
               variant="destructive"
             >
               {busy ? "Deleting…" : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Close confirmation — moving to a closed status notifies the customer */}
+      <Dialog
+        onOpenChange={(open) => !open && setCloseConfirm(null)}
+        open={closeConfirm !== null}
+      >
+        <DialogContent className="rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-base-content">
+              Close this ticket?
+            </DialogTitle>
+            <DialogDescription className="text-base-content-muted">
+              The ticket will be marked as closed and the customer will be
+              notified by email.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              className="border-base-300 text-base-content hover:bg-base-300"
+              onClick={() => setCloseConfirm(null)}
+              variant="outline"
+            >
+              Cancel
+            </Button>
+            <Button disabled={closingBusy} onClick={handleConfirmClose}>
+              {closingBusy ? "Closing…" : "Close Ticket"}
             </Button>
           </DialogFooter>
         </DialogContent>

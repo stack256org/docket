@@ -12,11 +12,9 @@ async function ensureDir(dir: string) {
   await fs.mkdir(dir, { recursive: true });
 }
 
-// ── Local filesystem driver — the default, and the only one with no setup.
-// Unchanged from before the multi-driver switch existed; every other
-// self-hosted deployment that hasn't opted into S3/R2 keeps this exact
-// behavior. MUST be a persistent volume in Docker or a redeploy wipes
-// uploads — see docker-compose.yml and docs/file-uploads.md.
+// ── Local filesystem driver — the default, and the only one needing no setup.
+// MUST be a persistent volume in Docker or a redeploy wipes every upload; see
+// docker-compose.yml and docs/file-uploads.md.
 const fsDriver = {
   async upload(key: string, buffer: Buffer): Promise<void> {
     const dest = path.join(UPLOADS_DIR, ...key.split("/"));
@@ -33,13 +31,9 @@ const fsDriver = {
   },
 };
 
-// ── Cloud drivers (s3 / r2), via files-sdk (https://files-sdk.dev).
-// Lazily constructed via dynamic import so the local-disk (default) path
-// never pulls in files-sdk or the AWS SDK — no added cold-start cost for
-// deployments that don't use them. Cached by a signature of the resolved
-// config (not "forever" — the driver/credentials can now change at runtime
-// via /admin/integrations, see lib/integration-settings.ts) so a settings
-// change rebuilds the client on next use instead of needing a restart.
+// ── Cloud drivers (s3 / r2) via files-sdk, dynamically imported so the default
+// local-disk path never loads files-sdk or the AWS SDK. Cached by a signature of
+// the resolved config, not forever, so a settings change rebuilds on next use.
 type CloudStorageSettings = Extract<StorageSettings, { driver: "s3" | "r2" }>;
 
 let cachedKey: string | null = null;
@@ -97,10 +91,8 @@ async function getCloudFiles(settings: CloudStorageSettings): Promise<Files> {
 }
 
 export const storage = {
-  /**
-   * Store a file. Key format: `tickets/{ticketId}/{uuid}/{filename}`
-   * Returns the key (never a full URL).
-   */
+  /** Store a file. Key format: `tickets/{ticketId}/{uuid}/{filename}`.
+   * Returns the key, never a full URL. */
   async upload(key: string, buffer: Buffer, mimeType: string): Promise<void> {
     const settings = await getStorageSettings();
     if (settings.driver === "local") {
@@ -133,17 +125,9 @@ export const storage = {
     await files.delete(key).catch(() => undefined);
   },
 
-  /**
-   * Return the URL to serve the file from. Always our own proxy route,
-   * regardless of driver — deliberately NOT a direct/signed cloud URL:
-   *   - keeps this synchronous, since callers build it inline
-   *     (e.g. `items.map(a => ({ url: storage.url(a.storageKey) }))`)
-   *     rather than awaiting per attachment;
-   *   - keeps ticket-attachment access control in our own route rather
-   *     than handing out cloud URLs (signed or public) directly.
-   * `/api/files/[...key]` calls `storage.download()` under the hood, which
-   * already supports every driver.
-   */
+  /** Always our own /api/files route, never a direct or signed cloud URL: that
+   * keeps this synchronous for inline `.map()` callers, and keeps attachment
+   * access control in our route. The route calls `download()` for every driver. */
   url(key: string): string {
     return `/api/files/${key}`;
   },

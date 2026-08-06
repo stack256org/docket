@@ -1,10 +1,6 @@
-// Human-readable labels for known audit action slugs, used purely for
-// display (getAuditActionLabel falls back to the raw slug for anything not
-// listed here, so a missing entry never breaks the filter — see
-// audit-log-filters.tsx, whose dropdown options come from a live `SELECT
-// DISTINCT action` in page.tsx, not this list). Still worth keeping in sync
-// for readability whenever a new `audit({ action: "..." })` call site is
-// added elsewhere in the codebase.
+// Display-only labels for known audit action slugs. A missing entry never breaks
+// anything — getAuditActionLabel falls back to the raw slug, and the filter's
+// options come from a live SELECT DISTINCT — but keep it current for readability.
 export const AUDIT_ACTIONS: { label: string; value: string }[] = [
   { label: "Logout", value: "auth.logout" },
   { label: "Magic Link Sent", value: "auth.magic_link_sent" },

@@ -11,14 +11,10 @@ import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { richTextToHtml, richTextToPlainText } from "@/lib/rich-text";
 
-// GET /api/v1/tickets/:id — public API, authenticated with an API key.
-// Any active key can read any ticket — this is a single-tenant, self-hosted
-// deployment, so there's no cross-tenant isolation concern to enforce here.
-//
-// Returns the customer's opening message (`description`, the one thing the
-// conversation thread in /comments does NOT include) plus the customer's
-// email/name so an integrating backend can bind a ticket to the account that
-// owns it, and the files attached to that opening message (comment_id IS NULL).
+// GET /api/v1/tickets/:id — any active key reads any ticket; single-tenant, so
+// there is no cross-tenant isolation to enforce. Returns the opening message
+// (the one thing /comments omits), the customer's email/name so a backend can
+// bind the ticket to an account, and that message's attachments.
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

@@ -166,7 +166,7 @@ Since customers have no account, this page provides a convenient way to find all
 - Header shows only: product logo/name + "Submit a Ticket" + "Find My Tickets" links.
 - No user avatar, no profile menu.
 - Status badges use consistent colors (see [design-system.md](./design-system.md)).
-- All forms use shadcn/ui components — never native HTML inputs.
+- All forms use the `components/ui/*` primitives — never native HTML inputs.
 - Mobile-responsive — customers often submit from mobile.
 
 ---

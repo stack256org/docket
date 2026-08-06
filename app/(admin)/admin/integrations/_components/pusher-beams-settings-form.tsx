@@ -26,6 +26,10 @@ export function PusherBeamsSettingsForm({
   const [hasSecretKey, setHasSecretKey] = useState(initial.hasSecretKey);
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [lastTestedAt, setLastTestedAt] = useState(initial.lastTestedAt);
+  const [lastTestOk, setLastTestOk] = useState(initial.lastTestOk);
+  const [lastTestError, setLastTestError] = useState(initial.lastTestError);
 
   const configured = !!(instanceId && hasSecretKey);
 
@@ -35,27 +39,37 @@ export function PusherBeamsSettingsForm({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pusherBeams: body }),
     });
-    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    const data = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      tested?: { pusherBeams?: { message: string; ok: boolean } };
+    };
     if (!res.ok) {
       toast.error(data.error ?? "Failed to save.");
-      return false;
+      return null;
     }
     toast.success(message);
-    return true;
+    return data;
   }
 
   async function save() {
     setSaving(true);
     try {
-      const ok = await patch(
+      const data = await patch(
         { instanceId, secretKey: secretKey || undefined },
         "Pusher Beams settings saved."
       );
-      if (ok) {
+      if (data) {
         if (secretKey) {
           setHasSecretKey(true);
         }
         setSecretKey("");
+        const tested = data.tested?.pusherBeams;
+        setLastTestedAt(tested ? new Date().toISOString() : null);
+        setLastTestOk(tested ? tested.ok : null);
+        setLastTestError(tested && !tested.ok ? tested.message : null);
+        if (tested && !tested.ok) {
+          toast.error(`Saved, but connection test failed: ${tested.message}`);
+        }
       }
     } catch {
       toast.error("Network error. Please try again.");
@@ -67,19 +81,56 @@ export function PusherBeamsSettingsForm({
   async function remove() {
     setRemoving(true);
     try {
-      const ok = await patch(
+      const data = await patch(
         { instanceId: "", secretKey: "" },
         "Pusher Beams settings removed."
       );
-      if (ok) {
+      if (data) {
         setInstanceId("");
         setSecretKey("");
         setHasSecretKey(false);
+        setLastTestedAt(null);
+        setLastTestOk(null);
+        setLastTestError(null);
       }
     } catch {
       toast.error("Network error. Please try again.");
     } finally {
       setRemoving(false);
+    }
+  }
+
+  async function testConnection() {
+    setTesting(true);
+    try {
+      const res = await fetch(
+        "/api/admin/integration-settings/pusher-beams/test",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            instanceId,
+            secretKey: secretKey || undefined,
+          }),
+        }
+      );
+      const result = (await res.json().catch(() => ({}))) as {
+        message?: string;
+        ok?: boolean;
+      };
+      const ok = res.ok && !!result.ok;
+      setLastTestedAt(new Date().toISOString());
+      setLastTestOk(ok);
+      setLastTestError(ok ? null : (result.message ?? "Test failed."));
+      if (ok) {
+        toast.success(result.message ?? "Connection succeeded.");
+      } else {
+        toast.error(result.message ?? "Connection test failed.");
+      }
+    } catch {
+      toast.error("Network error. Please try again.");
+    } finally {
+      setTesting(false);
     }
   }
 
@@ -91,9 +142,12 @@ export function PusherBeamsSettingsForm({
       description="OS-level push to agents when a customer replies, even with the app closed. From dashboard.pusher.com → Beams."
       onRemove={remove}
       onSave={save}
+      onTest={testConnection}
       removing={removing}
       saving={saving}
+      testing={testing}
       title="Push Notifications (Pusher Beams)"
+      verification={{ lastTestedAt, lastTestOk, lastTestError }}
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">

@@ -35,10 +35,39 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // nothing in integration_settings has ever been saved yet — no need to fetch
 // current values like /admin/integrations does, every field starts blank.
 const EMPTY_INTEGRATION_SETTINGS: IntegrationSettingsSummary = {
-  smtp: { host: "", port: 587, user: "", from: "", hasPassword: false },
-  google: { clientId: "", hasClientSecret: false },
-  pusherBeams: { instanceId: "", hasSecretKey: false },
-  pusherChannels: { appId: "", key: "", cluster: "", hasSecret: false },
+  smtp: {
+    host: "",
+    port: 587,
+    user: "",
+    from: "",
+    hasPassword: false,
+    lastTestedAt: null,
+    lastTestOk: null,
+    lastTestError: null,
+  },
+  google: {
+    clientId: "",
+    hasClientSecret: false,
+    lastTestedAt: null,
+    lastTestOk: null,
+    lastTestError: null,
+  },
+  pusherBeams: {
+    instanceId: "",
+    hasSecretKey: false,
+    lastTestedAt: null,
+    lastTestOk: null,
+    lastTestError: null,
+  },
+  pusherChannels: {
+    appId: "",
+    key: "",
+    cluster: "",
+    hasSecret: false,
+    lastTestedAt: null,
+    lastTestOk: null,
+    lastTestError: null,
+  },
   storage: {
     driver: "local",
     s3Bucket: "",
@@ -159,14 +188,10 @@ function WizardInner({ initialStep }: { initialStep?: "integrations" }) {
         // localStorage may be unavailable (private mode) — non-fatal.
       }
 
-      // Auto sign-in with the credentials just created, so the (session-gated)
-      // Integrations forms below can save. Deliberately no `callbackURL` here:
-      // Better Auth's sign-in/email response sets `redirect: true` whenever a
-      // callbackURL is passed, and the client SDK's redirect plugin reacts to
-      // that with an immediate `window.location.href` navigation — a full
-      // page nav straight past the Integrations step, before setStep(2)
-      // below ever runs. We navigate ourselves, once the wizard actually
-      // finishes (see finish()).
+      // Auto sign-in with the new credentials so the session-gated Integrations
+      // forms can save. No `callbackURL` on purpose: passing one makes Better
+      // Auth set `redirect: true`, and the SDK's redirect plugin then navigates
+      // immediately — straight past Integrations, before setStep(2) runs.
       const signIn = await authClient.signIn.email({
         email: email.trim(),
         password,
@@ -196,7 +221,7 @@ function WizardInner({ initialStep }: { initialStep?: "integrations" }) {
   }
 
   return (
-    <main className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-10">
+    <main className="min-h-screen bg-base-200 flex flex-col items-center justify-center px-4 py-10">
       {/* Stepper dots */}
       <div className="flex items-center gap-2.5 mb-8">
         {STEPS.map((label, i) => (
@@ -205,10 +230,10 @@ function WizardInner({ initialStep }: { initialStep?: "integrations" }) {
               aria-current={i === step ? "step" : undefined}
               className={cn(
                 "flex items-center justify-center size-6 rounded-full text-2xs font-semibold transition-colors",
-                i < step && "bg-primary text-primary-foreground",
+                i < step && "bg-primary text-primary-content",
                 i === step &&
                   "bg-primary/10 text-primary ring-2 ring-primary/40",
-                i > step && "bg-muted text-muted-foreground"
+                i > step && "bg-base-300 text-base-content-muted"
               )}
             >
               {i < step ? (
@@ -221,7 +246,7 @@ function WizardInner({ initialStep }: { initialStep?: "integrations" }) {
               <span
                 className={cn(
                   "h-px w-6 sm:w-10",
-                  i < step ? "bg-primary" : "bg-border"
+                  i < step ? "bg-primary" : "bg-base-300"
                 )}
               />
             )}
@@ -231,7 +256,7 @@ function WizardInner({ initialStep }: { initialStep?: "integrations" }) {
 
       <div
         className={cn(
-          "w-full rounded-xl border border-border bg-card shadow-sm p-6 sm:p-8",
+          "w-full rounded-xl border border-base-300 bg-base-100 shadow-sm p-6 sm:p-8",
           step === 2 ? "max-w-2xl" : "max-w-md"
         )}
       >
@@ -250,10 +275,10 @@ function WizardInner({ initialStep }: { initialStep?: "integrations" }) {
         {step === 1 && creating && (
           <div className="flex flex-col items-center text-center py-6">
             <CircleNotchIcon className="size-8 text-primary animate-spin" />
-            <h1 className="text-lg font-semibold text-foreground mt-4">
+            <h1 className="text-lg font-semibold text-base-content mt-4">
               Setting up your workspace…
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-sm text-base-content-muted mt-1">
               Creating your admin account and signing you in.
             </p>
           </div>
@@ -262,17 +287,17 @@ function WizardInner({ initialStep }: { initialStep?: "integrations" }) {
         {step === 1 && !creating && (
           <form className="space-y-5" onSubmit={handleAccountSubmit}>
             <div className="text-center">
-              <h1 className="text-xl font-semibold text-foreground">
+              <h1 className="text-xl font-semibold text-base-content">
                 Let&apos;s set up your account
               </h1>
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="text-sm text-base-content-muted mt-1">
                 This is the administrator account for {PRODUCT_NAME}.
               </p>
             </div>
 
             <div className="space-y-1.5">
               <Label htmlFor="name">
-                Full Name <span className="text-destructive">*</span>
+                Full Name <span className="text-error">*</span>
               </Label>
               <Input
                 autoComplete="name"
@@ -287,10 +312,10 @@ function WizardInner({ initialStep }: { initialStep?: "integrations" }) {
             <div className="space-y-1.5">
               <Label htmlFor="email">
                 Email Address{" "}
-                <span className="text-muted-foreground font-normal">
+                <span className="text-base-content-muted font-normal">
                   (will be your login ID)
                 </span>{" "}
-                <span className="text-destructive">*</span>
+                <span className="text-error">*</span>
               </Label>
               <Input
                 autoComplete="username"
@@ -304,7 +329,7 @@ function WizardInner({ initialStep }: { initialStep?: "integrations" }) {
 
             <div className="space-y-1.5">
               <Label htmlFor="password">
-                Password <span className="text-destructive">*</span>
+                Password <span className="text-error">*</span>
               </Label>
               <div className="relative">
                 <Input
@@ -318,7 +343,7 @@ function WizardInner({ initialStep }: { initialStep?: "integrations" }) {
                 />
                 <button
                   aria-label={showPassword ? "Hide password" : "Show password"}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-base-content-muted hover:text-base-content transition-colors"
                   onClick={() => setShowPassword((v) => !v)}
                   type="button"
                 >
@@ -333,7 +358,7 @@ function WizardInner({ initialStep }: { initialStep?: "integrations" }) {
 
             <div className="space-y-1.5">
               <Label htmlFor="confirm">
-                Confirm Password <span className="text-destructive">*</span>
+                Confirm Password <span className="text-error">*</span>
               </Label>
               <Input
                 autoComplete="new-password"
@@ -346,7 +371,7 @@ function WizardInner({ initialStep }: { initialStep?: "integrations" }) {
             </div>
 
             {error && (
-              <p className="text-sm text-destructive bg-destructive/10 rounded-md px-3 py-2">
+              <p className="text-sm text-error bg-error/10 rounded-md px-3 py-2">
                 {error}
               </p>
             )}
@@ -375,7 +400,7 @@ function WizardInner({ initialStep }: { initialStep?: "integrations" }) {
         {step === 2 && <IntegrationsStep onFinish={finish} />}
       </div>
 
-      <p className="text-xs text-muted-foreground mt-6 flex items-center gap-1.5">
+      <p className="text-xs text-base-content-muted mt-6 flex items-center gap-1.5">
         <CheckCircleIcon className="size-3.5" weight="fill" />
         Runs once — this page disappears after your first admin is created.
       </p>
@@ -403,13 +428,13 @@ function WelcomeStep({
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <div className="inline-flex items-center justify-center size-12 rounded-xl bg-primary text-primary-foreground mb-3">
+        <div className="inline-flex items-center justify-center size-12 rounded-xl bg-primary text-primary-content mb-3">
           <TicketIcon className="size-6" weight="fill" />
         </div>
-        <h1 className="text-xl font-semibold text-foreground">
+        <h1 className="text-xl font-semibold text-base-content">
           Welcome to {PRODUCT_NAME}
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-sm text-base-content-muted mt-1">
           Let&apos;s get your instance set up. Pick a look — you can change it
           later in Appearance settings.
         </p>
@@ -418,7 +443,9 @@ function WelcomeStep({
       <div className="space-y-1.5">
         <Label htmlFor="setup-brand-name">
           Brand name{" "}
-          <span className="text-muted-foreground font-normal">(optional)</span>
+          <span className="text-base-content-muted font-normal">
+            (optional)
+          </span>
         </Label>
         <Input
           id="setup-brand-name"
@@ -426,14 +453,14 @@ function WelcomeStep({
           placeholder={PRODUCT_NAME}
           value={brandName}
         />
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-base-content-muted">
           Shown instead of "{PRODUCT_NAME}" in emails and across the app. You
           can add a logo afterward from Appearance settings.
         </p>
       </div>
 
       <div>
-        <h2 className="text-sm font-medium text-foreground mb-2.5">
+        <h2 className="text-sm font-medium text-base-content mb-2.5">
           Color theme
         </h2>
         <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-6">
@@ -444,8 +471,8 @@ function WelcomeStep({
                 className={cn(
                   "flex flex-col items-center gap-1.5 p-2.5 rounded-lg border text-center transition-all cursor-pointer",
                   selected
-                    ? "border-primary ring-2 ring-ring/20 bg-primary/5"
-                    : "border-border bg-card hover:bg-accent/60"
+                    ? "border-primary ring-2 ring-primary/20 bg-primary/5"
+                    : "border-base-300 bg-base-100 hover:bg-base-300/60"
                 )}
                 key={theme.id}
                 onClick={() => setTheme(theme.id)}
@@ -463,7 +490,7 @@ function WelcomeStep({
                     />
                   )}
                 </span>
-                <span className="text-2xs font-medium text-foreground">
+                <span className="text-2xs font-medium text-base-content">
                   {theme.name}
                 </span>
               </button>
@@ -473,7 +500,7 @@ function WelcomeStep({
       </div>
 
       <div>
-        <h2 className="text-sm font-medium text-foreground mb-2.5">
+        <h2 className="text-sm font-medium text-base-content mb-2.5">
           Appearance
         </h2>
         <div className="grid grid-cols-3 gap-2.5">
@@ -485,15 +512,15 @@ function WelcomeStep({
                 className={cn(
                   "flex flex-col items-center gap-1.5 rounded-lg border p-3 transition-all cursor-pointer",
                   selected
-                    ? "border-primary ring-2 ring-ring/20 bg-primary/5"
-                    : "border-border bg-card hover:bg-accent/60"
+                    ? "border-primary ring-2 ring-primary/20 bg-primary/5"
+                    : "border-base-300 bg-base-100 hover:bg-base-300/60"
                 )}
                 key={opt.id}
                 onClick={() => setAppearance(opt.id)}
                 type="button"
               >
-                <Icon className="size-4 text-foreground" />
-                <span className="text-2xs font-medium text-foreground">
+                <Icon className="size-4 text-base-content" />
+                <span className="text-2xs font-medium text-base-content">
                   {opt.label}
                 </span>
               </button>
@@ -516,10 +543,10 @@ function IntegrationsStep({ onFinish }: { onFinish: () => void }) {
   return (
     <div className="space-y-5">
       <div className="text-center">
-        <h1 className="text-xl font-semibold text-foreground">
+        <h1 className="text-xl font-semibold text-base-content">
           Connect your integrations
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-sm text-base-content-muted mt-1">
           All optional — {PRODUCT_NAME} works without any of these. Skip now and
           add them later from Admin → Integrations.
         </p>

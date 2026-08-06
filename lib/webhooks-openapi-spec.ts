@@ -1,15 +1,7 @@
-// OpenAPI 3.1 specification for OUTBOUND webhooks (lib/webhooks/*, delivered
-// by lib/worker/handlers/webhook-send.ts) — rendered by the Scalar reference
-// at /admin/webhooks/docs and downloadable from GET /api/admin/webhooks/openapi.
-//
-// This uses OpenAPI 3.1's top-level `webhooks` keyword (structurally the
-// same as `paths`, but describing requests *we* send to *your* server rather
-// than requests you send to us) — the correct construct for this direction,
-// as opposed to the public API's `paths` in lib/openapi-spec.ts. Must be kept
-// in sync with docs/webhooks.md and the event catalog in lib/webhooks/events.ts.
-//
-// Hand-authored on purpose, same reasoning as lib/openapi-spec.ts: eight
-// events is well within hand-maintained territory.
+// OpenAPI 3.1 spec for OUTBOUND webhooks, rendered by Scalar at
+// /admin/webhooks/docs. Uses the top-level `webhooks` keyword — like `paths`,
+// but for requests *we* send to *your* server. Hand-authored; keep in sync with
+// docs/webhooks.md and the event catalog in lib/webhooks/events.ts.
 
 import { WEBHOOK_EVENTS } from "@/lib/webhooks/events";
 
@@ -204,9 +196,8 @@ export function buildWebhooksOpenApiSpec(
         "function verify(rawBody, timestampHeader, signatureHeader, secret) {",
         "  const expected = crypto",
         '    .createHmac("sha256", secret)',
-        // A JavaScript code sample rendered verbatim in the webhook API docs.
-        // The ${...} must reach the reader literally — it is their template
-        // literal, not one we intend to interpolate here.
+        // A JavaScript sample rendered verbatim in the webhook docs: the ${...}
+        // must reach the reader literally, being their template literal not ours.
         // biome-ignore lint/suspicious/noTemplateCurlyInString: literal code sample shown to API consumers
         "    .update(`${timestampHeader}.${rawBody}`)",
         "    .digest('hex');",

@@ -105,27 +105,27 @@ export function CustomerProfilePopover({
         className="w-96 max-h-[32rem] overflow-y-auto"
       >
         <div className="flex items-start gap-3">
-          <div className="size-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium shrink-0">
+          <div className="size-10 rounded-full bg-primary text-primary-content flex items-center justify-center text-sm font-medium shrink-0">
             {getInitials(customerName)}
           </div>
           <div className="min-w-0 pt-0.5">
-            <p className="text-sm font-medium text-foreground truncate">
+            <p className="text-sm font-medium text-base-content truncate">
               {customerName}
             </p>
-            <p className="text-xs text-muted-foreground truncate">
+            <p className="text-xs text-base-content-muted truncate">
               {customerEmail}
             </p>
           </div>
         </div>
 
         {loading && (
-          <p className="text-xs text-muted-foreground mt-4">Loading…</p>
+          <p className="text-xs text-base-content-muted mt-4">Loading…</p>
         )}
 
         {profile && (
           <div className="mt-4 space-y-4">
             <div className="space-y-1.5">
-              <span className="text-xs font-medium text-muted-foreground">
+              <span className="text-xs font-medium text-base-content-muted">
                 Note
               </span>
               <Textarea
@@ -160,7 +160,7 @@ export function CustomerProfilePopover({
             </div>
 
             <div>
-              <span className="text-xs font-medium text-muted-foreground">
+              <span className="text-xs font-medium text-base-content-muted">
                 Frequency
               </span>
               <div className="h-28 mt-1">
@@ -171,17 +171,17 @@ export function CustomerProfilePopover({
                       dataKey="label"
                       fontSize={10}
                       interval={0}
-                      stroke="var(--muted-foreground)"
+                      stroke="var(--base-content-muted)"
                       tickLine={false}
                     />
                     <Tooltip
                       contentStyle={{
-                        background: "var(--popover)",
-                        border: "1px solid var(--border)",
+                        background: "var(--base-100)",
+                        border: "1px solid var(--base-300)",
                         borderRadius: "8px",
                         fontSize: "12px",
                       }}
-                      cursor={{ fill: "var(--accent)" }}
+                      cursor={{ fill: "var(--base-300)" }}
                       labelFormatter={(_label, payload) =>
                         payload?.[0]?.payload?.month ?? ""
                       }
@@ -213,11 +213,11 @@ function TicketList({
 }) {
   return (
     <div className="min-w-0">
-      <span className="text-2xs font-medium text-muted-foreground uppercase tracking-wide">
+      <span className="text-2xs font-medium text-base-content-muted uppercase tracking-wide">
         {title}
       </span>
       {tickets.length === 0 ? (
-        <p className="text-xs text-muted-foreground mt-1.5">None</p>
+        <p className="text-xs text-base-content-muted mt-1.5">None</p>
       ) : (
         <ul className="mt-1.5 space-y-1.5">
           {tickets.slice(0, 5).map((t) => (
@@ -225,15 +225,15 @@ function TicketList({
               <Link
                 className={`block text-xs truncate hover:underline ${
                   t.id === currentTicketId
-                    ? "text-muted-foreground"
-                    : "text-foreground"
+                    ? "text-base-content-muted"
+                    : "text-base-content"
                 }`}
                 href={`/tickets/${t.id}`}
                 title={t.subject}
               >
                 {t.subject}
               </Link>
-              <span className="text-2xs text-muted-foreground">
+              <span className="text-2xs text-base-content-muted">
                 {formatTicketDateTime(new Date(t.createdAt))}
               </span>
             </li>

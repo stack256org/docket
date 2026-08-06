@@ -5,11 +5,9 @@ import { decryptSecret } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 
-/**
- * The single integration_settings row, or undefined if never written to (a
- * fresh install, or one that only ever used .env). Memoized per-request like
- * lib/setup.ts's isSetupComplete() — every getter below shares one query.
- */
+/** The single integration_settings row, or undefined on a fresh install (or one
+ * that only ever used .env). Memoized per-request, so every getter below shares
+ * one query. */
 const getRow = cache(async () => {
   const [row] = await db
     .select()
@@ -57,13 +55,9 @@ export interface GoogleOAuthSettings {
   clientSecret: string;
 }
 
-/**
- * Read once at process boot by lib/auth.ts (top-level await) — Better Auth
- * builds its social-providers config once when that module is first
- * evaluated, so changes here only take effect after an app restart. UI
- * "is Google configured" checks call this too, for consistency, even though
- * it's a fresh DB read each time — see docs/authentication.md.
- */
+/** Read once at boot by lib/auth.ts, which bakes social-providers into its
+ * singleton — so changes take effect only after a restart (docs/authentication).
+ * UI "is Google configured" checks call this too, as a fresh read each time. */
 export async function getGoogleOAuthSettings(): Promise<GoogleOAuthSettings | null> {
   const row = await getRow();
   const clientId = nonEmpty(row?.googleClientId) ?? env.GOOGLE_CLIENT_ID;
@@ -130,12 +124,9 @@ export interface PusherClientConfig {
   pusherKey: string | null;
 }
 
-/**
- * Public identifiers only (no secrets) — served unauthenticated via
- * GET /api/config/client so the browser can read them at runtime instead of
- * needing NEXT_PUBLIC_* baked in at Docker build time (see lib/pusher-browser.ts,
- * components/agent/push-init.tsx).
- */
+/** Public identifiers only, no secrets — served unauthenticated via
+ * GET /api/config/client so the browser reads them at runtime rather than
+ * needing NEXT_PUBLIC_* baked in at Docker build time. */
 export async function getPusherClientConfig(): Promise<PusherClientConfig> {
   const row = await getRow();
   return {
@@ -168,13 +159,9 @@ export type StorageSettings =
       secretAccessKey: string | undefined;
     };
 
-/**
- * Resolves the storage driver + its credentials. Throws with a clear message
- * on misconfiguration (s3/r2 selected without its required fields) — used to
- * be validated once at boot in lib/env.ts, but the driver can now come from
- * the DB, which lib/env.ts's eager parse can't see, so the check moved here
- * and runs lazily on first use (lib/storage.ts).
- */
+/** Resolves the storage driver and its credentials, throwing a clear message if
+ * s3/r2 is selected without its required fields. Checked lazily on first use
+ * rather than at boot, since the driver can now come from the DB. */
 export async function getStorageSettings(): Promise<StorageSettings> {
   const row = await getRow();
   const driver = (nonEmpty(row?.storageDriver) ??
@@ -191,10 +178,9 @@ export async function getStorageSettings(): Promise<StorageSettings> {
       region: nonEmpty(row?.s3Region) ?? env.S3_REGION,
       publicBaseUrl:
         nonEmpty(row?.storagePublicBaseUrl) ?? env.STORAGE_PUBLIC_BASE_URL,
-      // DB-only, deliberately no env fallback: when neither is set, the s3
-      // adapter is called without `credentials` at all, so the AWS SDK's own
-      // default chain (AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY, IAM role, or
-      // a shared profile) keeps working exactly as before — see lib/storage.ts.
+      // DB-only, no env fallback on purpose: with neither set the s3 adapter is
+      // called without `credentials`, leaving the AWS SDK's own default chain
+      // (env, IAM role, shared profile) working as before. See lib/storage.ts.
       accessKeyId: nonEmpty(row?.awsAccessKeyId),
       secretAccessKey: row?.awsSecretAccessKeyEncrypted
         ? decryptSecret(row.awsSecretAccessKeyEncrypted)
@@ -226,22 +212,32 @@ export async function getStorageSettings(): Promise<StorageSettings> {
   return { driver: "local" };
 }
 
+/** Result of the last credential check for a section that supports one (SMTP,
+ * Google, Pusher Channels, Pusher Beams) — see lib/integration-test.ts.
+ * `lastTestOk` is null until the first check ever runs, and reset to null
+ * whenever the section becomes incomplete. */
+export interface LastTestResult {
+  lastTestError: string | null;
+  lastTestedAt: string | null;
+  lastTestOk: boolean | null;
+}
+
 export interface IntegrationSettingsSummary {
-  google: { clientId: string; hasClientSecret: boolean };
-  pusherBeams: { instanceId: string; hasSecretKey: boolean };
+  google: { clientId: string; hasClientSecret: boolean } & LastTestResult;
+  pusherBeams: { instanceId: string; hasSecretKey: boolean } & LastTestResult;
   pusherChannels: {
     appId: string;
     key: string;
     cluster: string;
     hasSecret: boolean;
-  };
+  } & LastTestResult;
   smtp: {
     host: string;
     port: number;
     user: string;
     from: string;
     hasPassword: boolean;
-  };
+  } & LastTestResult;
   storage: {
     driver: "local" | "s3" | "r2";
     s3Bucket: string;
@@ -256,17 +252,9 @@ export interface IntegrationSettingsSummary {
   };
 }
 
-/**
- * DB-only view (no env fallback) of every field editable from
- * /admin/integrations — used to prefill that page's forms (and the setup
- * wizard's, which always gets the empty-row shape since nothing's been saved
- * yet at that point). Deliberately DB-only, not the resolved DB+env value:
- * this is what the admin *typed and saved*, not what's currently in effect,
- * so an env-var-configured field correctly shows blank/unset here rather
- * than leaking the env value into a form that would then treat it as
- * DB-authoritative on next save. Secrets are represented as
- * `has<Field>: boolean` only — never sent to the browser in plaintext.
- */
+/** Prefills the /admin/integrations forms with what the admin typed and saved,
+ * not the resolved DB+env value — so an env-configured field shows blank rather
+ * than being saved back as DB-authoritative. Secrets appear only as booleans. */
 export async function getIntegrationSettingsSummary(): Promise<IntegrationSettingsSummary> {
   const row = await getRow();
   return {
@@ -276,20 +264,32 @@ export async function getIntegrationSettingsSummary(): Promise<IntegrationSettin
       user: row?.smtpUser ?? "",
       from: row?.emailFrom ?? "",
       hasPassword: !!row?.smtpPassEncrypted,
+      lastTestedAt: row?.smtpLastTestedAt?.toISOString() ?? null,
+      lastTestOk: row?.smtpLastTestOk ?? null,
+      lastTestError: row?.smtpLastTestError ?? null,
     },
     google: {
       clientId: row?.googleClientId ?? "",
       hasClientSecret: !!row?.googleClientSecretEncrypted,
+      lastTestedAt: row?.googleLastTestedAt?.toISOString() ?? null,
+      lastTestOk: row?.googleLastTestOk ?? null,
+      lastTestError: row?.googleLastTestError ?? null,
     },
     pusherBeams: {
       instanceId: row?.pusherBeamsInstanceId ?? "",
       hasSecretKey: !!row?.pusherBeamsSecretKeyEncrypted,
+      lastTestedAt: row?.pusherBeamsLastTestedAt?.toISOString() ?? null,
+      lastTestOk: row?.pusherBeamsLastTestOk ?? null,
+      lastTestError: row?.pusherBeamsLastTestError ?? null,
     },
     pusherChannels: {
       appId: row?.pusherAppId ?? "",
       key: row?.pusherKey ?? "",
       cluster: row?.pusherCluster ?? "",
       hasSecret: !!row?.pusherSecretEncrypted,
+      lastTestedAt: row?.pusherChannelsLastTestedAt?.toISOString() ?? null,
+      lastTestOk: row?.pusherChannelsLastTestOk ?? null,
+      lastTestError: row?.pusherChannelsLastTestError ?? null,
     },
     storage: {
       driver: (row?.storageDriver as "local" | "s3" | "r2" | null) ?? "local",

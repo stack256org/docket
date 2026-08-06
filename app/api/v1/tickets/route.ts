@@ -23,11 +23,9 @@ const MAX_PER_PAGE = 100;
 const MAX_API_TAGS = 10;
 const MAX_TAG_LENGTH = 50;
 
-// GET /api/v1/tickets?email=customer@example.com&page=1&per_page=50 — public
-// API, authenticated with an API key. Lists that customer's tickets, most
-// recent first. Any active key can list any customer's tickets — same
-// single-tenant reasoning as GET /api/v1/tickets/:id (no per-key scoping on
-// this deployment).
+// GET /api/v1/tickets?email=…&page=1&per_page=50 — public API, API-key
+// authenticated. Lists that customer's tickets, newest first. Any active key can
+// list any customer: single-tenant, same reasoning as GET /api/v1/tickets/:id.
 export async function GET(request: NextRequest) {
   try {
     await requireApiKey(request);
@@ -151,20 +149,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  // "text" (default) or "html" — either way, converted to the same Tiptap
-  // JSON document the app's own editor produces, before validation ever
-  // sees it. HTML is parsed strictly through our schema (htmlToRichTextJson),
-  // so unrecognized tags/attributes are dropped, never stored as-is.
+  // "text" (default) or "html", both converted to the app's own Tiptap JSON
+  // before validation sees them. HTML is parsed strictly through our schema, so
+  // unrecognized tags and attributes are dropped rather than stored.
   const rawDescription = String(body.description ?? "");
   const description =
     body.descriptionFormat === "html"
       ? htmlToRichTextJson(rawDescription)
       : textToRichTextJson(rawDescription);
 
-  // A brand-new ticket has no attachments yet, so the full per-ticket cap is
-  // available. Decode/validate the files here, but only after the ticket
-  // fields themselves validate — files should never be uploaded for a
-  // submission that's going to be rejected anyway.
+  // A new ticket has no attachments yet, so the full per-ticket cap applies.
+  // Decoded only after the ticket fields validate — files should never be
+  // uploaded for a submission that is going to be rejected anyway.
   const decoded = decodeBase64Attachments(
     body.attachments,
     API_MAX_ATTACHMENTS_PER_TICKET
@@ -226,11 +222,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Optional tags — an integrating backend can classify a ticket at creation
-  // (e.g. "dtm", "website contact form"). Names are normalized/deduped and
-  // find-or-created in the shared pool, exactly like agent-added tags, so they
-  // render in the ticket's TAGS panel. Best effort: a tagging failure is logged
-  // but never fails the already-created ticket. Omitting tags changes nothing.
+  // Optional tags let an integrating backend classify a ticket at creation.
+  // Normalized, deduped and find-or-created in the shared pool exactly like
+  // agent-added tags. Best effort — a failure is logged, never fatal.
   const appliedTags = Array.isArray(body.tags)
     ? body.tags
         .map((t) => String(t))

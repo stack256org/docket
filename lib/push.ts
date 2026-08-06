@@ -34,15 +34,10 @@ export async function isPushConfigured(): Promise<boolean> {
   return (await getPusherBeamsSettings()) !== null;
 }
 
-/**
- * Beams device-association token for a user (used by the client token provider).
- *
- * We build the HS256 JWT ourselves instead of using `client.generateToken()` so
- * that we can back-date `iat` by a small leeway. The SDK stamps `iat` with the
- * local clock; if that clock is even a few seconds ahead of Pusher's servers the
- * token is rejected with "Token used before issued". The signed claims otherwise
- * match what the Beams SDK produces.
- */
+/** Beams device-association token for a user. The HS256 JWT is built by hand
+ * rather than via `client.generateToken()` purely to back-date `iat`: the SDK
+ * stamps it from the local clock, and a few seconds' drift ahead of Pusher gets
+ * the token rejected as "Token used before issued". Claims are otherwise identical. */
 export async function generateBeamsToken(
   userId: string
 ): Promise<{ token: string } | null> {
@@ -73,10 +68,8 @@ export async function generateBeamsToken(
   return { token: `${signingInput}.${signature}` };
 }
 
-/**
- * Send a browser/OS push to the given users. No-op when Beams isn't configured.
- * Best-effort: never throws to the caller (callers should still `.catch`).
- */
+/** Send a browser/OS push to the given users. No-op when Beams isn't configured.
+ * Best-effort: never throws to the caller (who should still `.catch`). */
 export async function publishPushToUsers(
   userIds: string[],
   data: { title: string; body: string; deepLink?: string }

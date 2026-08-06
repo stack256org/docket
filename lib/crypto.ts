@@ -47,15 +47,10 @@ export function generateWebhookSecret(): string {
   return `whsec_${randomBytes(24).toString("hex")}`;
 }
 
-/**
- * The signature sent as `X-Docket-Signature: sha256=<hex>` on every webhook delivery.
- *
- * The timestamp is inside the signed material on purpose. Signing the body
- * alone would let anyone who captured one delivery replay it forever, so
- * receivers are told to reject anything more than a few minutes old (see
- * docs/webhooks.md). Changing what goes in here, or the order it goes in,
- * silently breaks every receiver that has already implemented verification.
- */
+/** The `X-Docket-Signature: sha256=<hex>` sent on every webhook delivery. The
+ * timestamp is signed alongside the body on purpose — body alone would be
+ * replayable forever, so receivers reject anything minutes old. Changing the
+ * contents or their order silently breaks every receiver already verifying. */
 export function signWebhookPayload(
   secret: string,
   timestampSeconds: number,

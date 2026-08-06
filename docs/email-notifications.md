@@ -154,7 +154,16 @@ Bodies use `{{mergeTag}}` placeholders, substituted at send time — e.g. `{{cus
 
 **Hiding the replying agent's name** isn't a separate toggle — the "Agent Replied" template's default body includes `{{agentName}}`; an admin who doesn't want it shown just edits the template body and removes that tag (e.g. "Our support team has replied…" instead of "{{agentName}} has replied…").
 
-Customized bodies render as clean rich text (paragraphs, bold, lists, links) through the same Tiptap-based renderer that renders reply content in the public API — safe by construction, since it only ever emits the schema's own whitelisted tags. They do **not** get the default template's pill-shaped button or muted "if the button doesn't work" fallback line — those are presentation details of the built-in design, not something a rich-text body can reproduce. Wrap a `{{ticketUrl}}` tag in a real hyperlink (the editor's own link tool) to get a clickable link in the customized version.
+Customized bodies render as clean rich text (paragraphs, headings, blockquotes, bold, lists, links) through the same Tiptap-based renderer that renders reply content in the public API — safe by construction, since it only ever emits the schema's own whitelisted tags. They do **not** get the default template's muted "if the button doesn't work" fallback line — that's a presentation detail of the built-in design, not something a rich-text body can reproduce. Everything else about the built-in look *is* reproduced automatically by `renderCustomEmail()`'s post-processing step (`styleCustomEmailBody()` in `lib/email-templates.ts`), driven off the same element types the pre-filled `defaultBody` (`EMAIL_TEMPLATE_TYPES`) already uses:
+
+- A link whose visible text is the URL itself — a `{{ticketUrl}}`-style tag typed as plain text, or a pasted bare URL — becomes a CTA button; a link with a custom label (from the editor's own link tool) instead gets styled as a plain accent-colored link.
+- `<h1>`/`<h2>`/`<h3>` get the built-in design's heading treatment, `<blockquote>` gets its bordered/tinted callout box (used by the "Agent Replied" default body for `{{replyPreview}}`), and `<strong>` gets the accent color — same as the JSX default's highlighted ticket numbers/agent names.
+
+Because the editor is pre-filled with this same structure (not flat plain text), tweaking one word — e.g. dropping `{{agentName}}` — doesn't flatten the rest of the email's look the way a from-scratch plain-text body would.
+
+### Email Accent Color
+
+Admins can set a hex accent color (`platform_settings.email_accent_color`, default `#384959`) from the "Email accent color" panel at the top of `/admin/email-templates`, e.g. to match their brand website. It colors buttons, links, and highlighted values (ticket numbers, agent names) in **every** outgoing email — both the built-in designs and customized bodies — via `createEmailStyles()` in `lib/email/components/layout.tsx`. Body text and headings stay a fixed dark neutral regardless of the chosen accent, so contrast/readability is guaranteed no matter what color is picked. `null` means "use the default." Resolved per-send by `getEmailBranding()` in `lib/settings.ts`, same pattern as brand name/logo.
 
 ## Per-API-key portal links
 
@@ -192,7 +201,7 @@ This exists for teams that consume the same events via [outbound webhooks](webho
 2. Notifications are sent asynchronously — API responses do not wait for email delivery.
 3. If email delivery fails after 3 retries, the job is moved to the pg-boss dead-letter queue. The ticket operation (create, reply, close) is not rolled back.
 4. The `customerToken` embedded in email links is the same token stored in the ticket record — it never expires and does not need to be refreshed.
-5. The brand name/logo shown in every email come from the admin-configurable settings in `/admin/appearance` (`lib/settings.ts`'s `getEmailBranding()`), falling back to the `PRODUCT_NAME` constant in `config/platform.ts` when unset — not a hardcoded value.
+5. The brand name/logo/accent color shown in every email come from the admin-configurable settings in `/admin/appearance` (name/logo) and `/admin/email-templates` (accent color) — all resolved through `lib/settings.ts`'s `getEmailBranding()`, falling back to `PRODUCT_NAME` (`config/platform.ts`) and `#384959` respectively when unset — not hardcoded values.
 6. Admin-customized template subjects/bodies (see above) take priority over the hardcoded design; a template with no saved row/body uses the hardcoded design unchanged.
 7. A ticket's customer-facing link uses its originating API key's custom portal URL when one is configured, otherwise Docket's own `/ticket/:id` portal (see [Per-API-key portal links](#per-api-key-portal-links)).
 8. Ticket lifecycle emails can be turned off entirely in favor of webhook-driven emails from the integrator's own backend (see [Disabling Docket's Ticket Emails](#disabling-dockets-ticket-emails)); auth emails always send.

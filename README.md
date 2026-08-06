@@ -62,6 +62,7 @@ palettes and six colour presets are switchable in `/admin/appearance`.</sub>
 ## Contents
 
 - [What you get](#what-you-get)
+- [Two ways to use it](#two-ways-to-use-it)
 - [Built with](#built-with)
 - [Quick start](#quick-start)
 - [Settings](#settings)
@@ -119,6 +120,23 @@ palettes and six colour presets are switchable in `/admin/appearance`.</sub>
 
 ---
 
+## Two ways to use it
+
+There are two ways to get requests into Docket, and they are not mutually exclusive — use
+either one, or both.
+
+1. **Docket's own form.** Send customers to `/` on your install. No integration work: they
+   fill it in, submit, and get a private link by email to follow the reply. This is what
+   you get the moment you deploy Docket, described in [What you get](#what-you-get) above.
+2. **Your own website, through the API.** Keep your existing "Contact support" page and
+   have it call Docket's REST API instead of Docket's form. Docket still creates the
+   request, sends the emails, and hosts the customer's reply page — your site just sends
+   the initial request and, optionally, reads status back. See [Public API](#public-api).
+
+Either way, requests land in the same queue and your team replies the same way.
+
+---
+
 ## Built with
 
 | Layer | Choice |
@@ -128,7 +146,7 @@ palettes and six colour presets are switchable in `/admin/appearance`.</sub>
 | Database | PostgreSQL |
 | Database access | Drizzle ORM |
 | Sign-in | Better Auth (password, magic link, Google) |
-| Styling | Tailwind CSS v4 and shadcn/ui |
+| Styling | Tailwind CSS v4, daisyUI, and Headless UI |
 | Email | Nodemailer over SMTP |
 | Background jobs | pg-boss |
 | File storage | Local disk, S3, or Cloudflare R2 |

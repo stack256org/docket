@@ -1,32 +1,8 @@
 #!/usr/bin/env node
-/**
- * Keeps every part of README.md that names a version in step with the single
- * source of truth: the `version` field in package.json.
- *
- * WHY THIS EXISTS: the README advertised a `1` / `1.4` / `1.4.2` tag ladder and
- * `IMAGE_TAG=1.0.0` while the only published release was 0.1.0. Nothing was
- * wrong with the release pipeline — the prose was simply written by hand once
- * and then never revisited, so it drifted the moment the first real version
- * shipped. A customer copying those lines gets "manifest unknown", which reads
- * like a broken registry rather than a stale sentence.
- *
- * WHY package.json RATHER THAN THE REGISTRY OR THE LATEST GIT TAG: release.yml
- * derives the published image tags from this exact field, so generating the
- * prose from it means the README and the images can only ever describe the same
- * version. Asking the registry instead would make the check network-dependent
- * and would fail on a fork that has published nothing; asking for the newest git
- * tag would be a release behind during the commit that bumps the version, which
- * is precisely the commit that has to be right.
- *
- * WHY A CHECK IN CI RATHER THAN A BOT COMMIT: the version bump and the README
- * land in the same commit, so by the time release.yml publishes anything the
- * prose is already correct. A workflow that pushed a fixup commit afterwards
- * would leave a window where main advertised a version that did not exist yet,
- * and would add a bot commit to every release for no gain.
- *
- *   node scripts/sync-readme.mjs           # rewrite the generated blocks
- *   node scripts/sync-readme.mjs --check   # exit 1 if they are out of date (CI)
- */
+// Keeps README.md's version-naming prose in step with package.json's `version`,
+// the same field release.yml derives image tags from — so the two can never
+// disagree, as they did when the README advertised tags that were never
+// published. Run bare to rewrite the generated blocks, `--check` to fail CI.
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -54,13 +30,9 @@ if (!/^\d+\.\d+\.\d+$/.test(version)) {
 const major = version.split(".")[0];
 const minor = version.split(".").slice(0, 2).join(".");
 
-/**
- * One entry per generated region. The key is the name in the marker comment;
- * the value is the exact text that belongs between the markers.
- *
- * Keep the prose here rather than in README.md — the file is generated from
- * this, so editing the README between the markers is what gets overwritten.
- */
+/** One entry per generated region: key = the name in the marker comment, value =
+ * the exact text between the markers. Edit the prose HERE — anything typed into
+ * README.md between the markers is what gets overwritten. */
 const blocks = {
   // The tag ladder and the pinned-version example. `latest`, `main` and
   // `sha-<short>` are fixed names, but the ladder is entirely version-derived,

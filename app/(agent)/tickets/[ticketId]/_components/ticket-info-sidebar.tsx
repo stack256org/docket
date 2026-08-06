@@ -296,21 +296,21 @@ export function TicketInfoSidebar({
       >
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">Number</span>
-            <span className="text-xs font-mono font-medium text-foreground">
+            <span className="text-xs text-base-content-muted">Number</span>
+            <span className="text-xs font-mono font-medium text-base-content">
               #{ticket.ticketNumber}
             </span>
           </div>
 
           <div className="space-y-1">
-            <span className="text-xs text-muted-foreground">Status</span>
+            <span className="text-xs text-base-content-muted">Status</span>
             <Select
               disabled={loading}
               onValueChange={handleStatusChange}
               value={status}
             >
               <SelectTrigger
-                className={`h-8 w-full text-xs border ${COLOR_BADGE[statusMap[status]?.color ?? "slate"] ?? "border-border"}`}
+                className={`h-8 w-full text-xs border ${COLOR_BADGE[statusMap[status]?.color ?? "slate"] ?? "border-base-300"}`}
               >
                 <SelectValue />
               </SelectTrigger>
@@ -325,14 +325,14 @@ export function TicketInfoSidebar({
           </div>
 
           <div className="space-y-1">
-            <span className="text-xs text-muted-foreground">Priority</span>
+            <span className="text-xs text-base-content-muted">Priority</span>
             <Select
               disabled={loading}
               onValueChange={handlePriorityChange}
               value={priority}
             >
               <SelectTrigger
-                className={`h-8 w-full text-xs border ${COLOR_BADGE[priorityMap[priority]?.color ?? "slate"] ?? "border-border"}`}
+                className={`h-8 w-full text-xs border ${COLOR_BADGE[priorityMap[priority]?.color ?? "slate"] ?? "border-base-300"}`}
               >
                 <SelectValue />
               </SelectTrigger>
@@ -347,7 +347,7 @@ export function TicketInfoSidebar({
           </div>
 
           <div className="space-y-1">
-            <span className="text-xs text-muted-foreground">Category</span>
+            <span className="text-xs text-base-content-muted">Category</span>
             <Select
               disabled={loading}
               onValueChange={handleCategoryChange}
@@ -367,21 +367,21 @@ export function TicketInfoSidebar({
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">Created</span>
-            <span className="text-xs text-foreground">
+            <span className="text-xs text-base-content-muted">Created</span>
+            <span className="text-xs text-base-content">
               {formatTicketDateTime(ticket.createdAt)}
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">Updated</span>
-            <span className="text-xs text-foreground">
+            <span className="text-xs text-base-content-muted">Updated</span>
+            <span className="text-xs text-base-content">
               {formatTicketDateTime(ticket.updatedAt)}
             </span>
           </div>
           {ticket.closedAt && (
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">Closed</span>
-              <span className="text-xs text-foreground">
+              <span className="text-xs text-base-content-muted">Closed</span>
+              <span className="text-xs text-base-content">
                 {formatTicketDateTime(ticket.closedAt)}
               </span>
             </div>
@@ -390,7 +390,7 @@ export function TicketInfoSidebar({
 
         {statusMap[status]?.isClosedState ? (
           <Button
-            className="w-full border-border text-foreground hover:bg-accent text-xs"
+            className="w-full border-base-300 text-base-content hover:bg-base-300 text-xs"
             disabled={loading}
             onClick={handleReopen}
             size="sm"
@@ -446,7 +446,7 @@ export function TicketInfoSidebar({
             />
           )}
           {!slaSnapshot.firstResponse && (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-base-content-muted">
               No SLA policy configured.
             </p>
           )}
@@ -477,17 +477,17 @@ export function TicketInfoSidebar({
           customerName={ticket.customerName}
         >
           <button
-            className="flex items-start gap-2.5 w-full text-left rounded-md -m-1 p-1 hover:bg-accent transition-colors"
+            className="flex items-start gap-2.5 w-full text-left rounded-md -m-1 p-1 hover:bg-base-300 transition-colors"
             type="button"
           >
-            <div className="size-7 rounded-full bg-accent border border-border flex items-center justify-center text-xs font-medium text-foreground shrink-0">
+            <div className="size-7 rounded-full bg-base-300 border border-base-300 flex items-center justify-center text-xs font-medium text-base-content shrink-0">
               {getInitials(ticket.customerName)}
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground truncate">
+              <p className="text-sm font-medium text-base-content truncate">
                 {ticket.customerName}
               </p>
-              <p className="text-xs text-muted-foreground truncate">
+              <p className="text-xs text-base-content-muted truncate">
                 {ticket.customerEmail}
               </p>
             </div>
@@ -519,7 +519,7 @@ export function TicketInfoSidebar({
         />
         {assignedAgentId !== currentUserId && (
           <Button
-            className="w-full border-border text-foreground hover:bg-accent text-xs flex items-center gap-1.5"
+            className="w-full border-base-300 text-base-content hover:bg-base-300 text-xs flex items-center gap-1.5"
             disabled={loading}
             onClick={() => handleAssignChange(currentUserId)}
             size="sm"
@@ -542,10 +542,10 @@ export function TicketInfoSidebar({
             const label = ACTION_LABELS[a.action]?.(a) ?? a.action;
             return (
               <div className="flex gap-2 text-xs" key={a.id}>
-                <span className="size-1.5 rounded-full bg-muted mt-1.5 shrink-0" />
+                <span className="size-1.5 rounded-full bg-base-300 mt-1.5 shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-foreground">{label}</p>
-                  <p className="text-muted-foreground mt-0.5">
+                  <p className="text-base-content">{label}</p>
+                  <p className="text-base-content-muted mt-0.5">
                     {a.actorName} · {formatTicketDateTime(a.createdAt)}
                   </p>
                 </div>
@@ -579,17 +579,17 @@ export function TicketInfoSidebar({
       <Dialog onOpenChange={setCloseOpen} open={closeOpen}>
         <DialogContent className="rounded-xl">
           <DialogHeader>
-            <DialogTitle className="text-foreground">
+            <DialogTitle className="text-base-content">
               Close this ticket?
             </DialogTitle>
-            <DialogDescription className="text-muted-foreground">
+            <DialogDescription className="text-base-content-muted">
               The ticket will be marked as closed and the customer will be
               notified by email.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
             <Button
-              className="border-border text-foreground"
+              className="border-base-300 text-base-content"
               disabled={loading}
               onClick={() => setCloseOpen(false)}
               variant="outline"
@@ -597,7 +597,7 @@ export function TicketInfoSidebar({
               Cancel
             </Button>
             <Button
-              className="bg-primary hover:bg-primary/90 text-primary-foreground"
+              className="bg-primary hover:bg-primary/90 text-primary-content"
               disabled={loading}
               onClick={handleConfirmClose}
             >
@@ -614,17 +614,17 @@ export function TicketInfoSidebar({
             <div className="mx-auto mb-2 flex size-10 items-center justify-center rounded-full bg-red-100">
               <TrashIcon className="size-5 text-red-600" />
             </div>
-            <DialogTitle className="text-foreground text-center">
+            <DialogTitle className="text-base-content text-center">
               Delete ticket #{ticket.ticketNumber}?
             </DialogTitle>
-            <DialogDescription className="text-muted-foreground text-center">
+            <DialogDescription className="text-base-content-muted text-center">
               All comments and attachments will be permanently deleted. This
               cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
             <Button
-              className="flex-1 border-border text-foreground"
+              className="flex-1 border-base-300 text-base-content"
               disabled={deleting}
               onClick={() => setDeleteOpen(false)}
               variant="outline"

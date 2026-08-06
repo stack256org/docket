@@ -11,16 +11,7 @@ import {
   SlaOutcomeBadge,
   SlaWaitBadge,
 } from "@/components/common/sla-badge";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -72,6 +63,7 @@ interface Props {
    * link so the detail page's Previous/Next buttons stay within this same
    * filtered result set. */
   listQuery: string;
+  onRequestClose: (status: string) => void;
   onToggleSelect: () => void;
   priorities: TicketPriority[];
   priorityMap: Record<string, ColorRow | undefined>;
@@ -92,6 +84,7 @@ export function TicketRow({
   agents,
   isAdmin,
   selected,
+  onRequestClose,
   onToggleSelect,
   visibleColumns,
   listQuery,
@@ -101,8 +94,6 @@ export function TicketRow({
   const [priority, setPriority] = useState(row.priority);
   const [assignedAgentId, setAssignedAgentId] = useState(row.assignedAgentId);
   const [loading, setLoading] = useState(false);
-  const [closeOpen, setCloseOpen] = useState(false);
-  const [pendingStatus, setPendingStatus] = useState<string | null>(null);
 
   useEffect(() => setStatus(row.status), [row.status]);
   useEffect(() => setPriority(row.priority), [row.priority]);
@@ -139,8 +130,7 @@ export function TicketRow({
   async function handleStatusChange(newStatus: string) {
     // Moving to a closed state needs confirmation (it notifies the customer).
     if (statuses.find((s) => s.slug === newStatus)?.isClosedState) {
-      setPendingStatus(newStatus);
-      setCloseOpen(true);
+      onRequestClose(newStatus);
       return;
     }
     const ok = await patch({ status: newStatus });
@@ -150,20 +140,6 @@ export function TicketRow({
         `Status changed to ${statusMap[newStatus]?.label ?? newStatus}.`
       );
     }
-  }
-
-  async function handleConfirmClose() {
-    if (!pendingStatus) {
-      setCloseOpen(false);
-      return;
-    }
-    const ok = await patch({ status: pendingStatus });
-    if (ok) {
-      setStatus(pendingStatus);
-      toast.success("Ticket closed. The customer has been notified.");
-    }
-    setCloseOpen(false);
-    setPendingStatus(null);
   }
 
   async function handlePriorityChange(newPriority: string) {
@@ -195,7 +171,7 @@ export function TicketRow({
             value={status}
           >
             <SelectTrigger
-              className={`h-7 w-full text-xs border ${COLOR_BADGE[statusMap[status]?.color ?? "slate"] ?? "border-border"}`}
+              className={`h-7 w-full text-xs border ${COLOR_BADGE[statusMap[status]?.color ?? "slate"] ?? "border-base-300"}`}
             >
               <SelectValue />
             </SelectTrigger>
@@ -224,7 +200,7 @@ export function TicketRow({
             value={priority}
           >
             <SelectTrigger
-              className={`h-7 w-full text-xs border ${COLOR_BADGE[priorityMap[priority]?.color ?? "slate"] ?? "border-border"}`}
+              className={`h-7 w-full text-xs border ${COLOR_BADGE[priorityMap[priority]?.color ?? "slate"] ?? "border-base-300"}`}
             >
               <SelectValue />
             </SelectTrigger>
@@ -259,7 +235,7 @@ export function TicketRow({
       case "customer":
         return (
           <span
-            className="block max-w-36 truncate text-muted-foreground text-xs"
+            className="block max-w-36 truncate text-base-content-muted text-xs"
             title={row.customerName}
           >
             {row.customerName}
@@ -287,19 +263,19 @@ export function TicketRow({
         );
       case "tags":
         return row.tags.length === 0 ? (
-          <span className="text-muted-foreground text-xs">—</span>
+          <span className="text-base-content-muted text-xs">—</span>
         ) : (
           <div className="flex flex-wrap gap-1">
             {row.tags.slice(0, 2).map((tag) => (
               <span
-                className="inline-flex items-center whitespace-nowrap rounded border border-border bg-accent px-1.5 py-0.5 text-xs font-medium text-foreground"
+                className="inline-flex items-center whitespace-nowrap rounded border border-base-300 bg-base-300 px-1.5 py-0.5 text-xs font-medium text-base-content"
                 key={tag}
               >
                 {tag}
               </span>
             ))}
             {row.tags.length > 2 && (
-              <span className="text-muted-foreground text-xs">
+              <span className="text-base-content-muted text-xs">
                 +{row.tags.length - 2}
               </span>
             )}
@@ -307,13 +283,13 @@ export function TicketRow({
         );
       case "updatedBy":
         return (
-          <span className="text-muted-foreground text-xs">
+          <span className="text-base-content-muted text-xs">
             {row.updatedByName ?? "—"}
           </span>
         );
       case "updatedAt":
         return (
-          <span className="text-muted-foreground text-xs whitespace-nowrap">
+          <span className="text-base-content-muted text-xs whitespace-nowrap">
             {formatTicketDate(row.updatedAt)}
           </span>
         );
@@ -323,69 +299,37 @@ export function TicketRow({
   }
 
   return (
-    <>
-      <tr
-        className={`hover:bg-accent/40 transition-colors group ${
-          selected ? "bg-primary/5" : ""
-        }`}
-      >
-        {isAdmin && (
-          <td
-            className={`sticky left-0 z-10 px-4 py-3 transition-colors group-hover:bg-accent/40 ${
-              selected ? "bg-primary/5" : "bg-card"
-            }`}
-          >
-            <Checkbox checked={selected} onCheckedChange={onToggleSelect} />
-          </td>
-        )}
-        <td className="px-4 py-3 text-muted-foreground font-mono text-xs">
-          #{row.ticketNumber}
+    <tr
+      className={`hover:bg-base-300/40 transition-colors group ${
+        selected ? "bg-primary/5" : ""
+      }`}
+    >
+      {isAdmin && (
+        <td
+          className={`sticky left-0 z-10 px-4 py-3 transition-colors group-hover:bg-base-300/40 ${
+            selected ? "bg-primary/5" : "bg-base-100"
+          }`}
+        >
+          <Checkbox checked={selected} onCheckedChange={onToggleSelect} />
         </td>
-        <td className="px-4 py-3">
-          <Link
-            className="text-[13px] font-medium text-foreground hover:underline line-clamp-2"
-            href={`/tickets/${row.id}${listQuery}`}
-            title={row.subject}
-          >
-            {row.subject}
-          </Link>
+      )}
+      <td className="px-4 py-3 text-base-content-muted font-mono text-xs">
+        #{row.ticketNumber}
+      </td>
+      <td className="px-4 py-3">
+        <Link
+          className="text-[13px] font-medium text-base-content hover:underline line-clamp-2"
+          href={`/tickets/${row.id}${listQuery}`}
+          title={row.subject}
+        >
+          {row.subject}
+        </Link>
+      </td>
+      {visibleColumns.map((c) => (
+        <td className="px-4 py-3" key={c.id}>
+          {renderCell(c.id)}
         </td>
-        {visibleColumns.map((c) => (
-          <td className="px-4 py-3" key={c.id}>
-            {renderCell(c.id)}
-          </td>
-        ))}
-      </tr>
-
-      {/* Close confirmation — moving to a closed status notifies the customer */}
-      <Dialog onOpenChange={setCloseOpen} open={closeOpen}>
-        <DialogContent className="rounded-xl">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">
-              Close this ticket?
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground">
-              The ticket will be marked as closed and the customer will be
-              notified by email.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2">
-            <Button
-              className="border-border text-foreground hover:bg-accent"
-              onClick={() => {
-                setCloseOpen(false);
-                setPendingStatus(null);
-              }}
-              variant="outline"
-            >
-              Cancel
-            </Button>
-            <Button disabled={loading} onClick={handleConfirmClose}>
-              {loading ? "Closing…" : "Close Ticket"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+      ))}
+    </tr>
   );
 }

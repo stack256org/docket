@@ -2,10 +2,17 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { SearchableSelect } from "@/components/common/searchable-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-export function GoToPage({ totalPages }: { totalPages: number }) {
+interface GoToPageProps {
+  /** Route to push page-jump navigations to, e.g. "/tickets". */
+  basePath: string;
+  totalPages: number;
+}
+
+export function GoToPage({ totalPages, basePath }: GoToPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [value, setValue] = useState("");
@@ -22,13 +29,15 @@ export function GoToPage({ totalPages }: { totalPages: number }) {
     } else {
       params.delete("page");
     }
-    router.push(`/tickets?${params.toString()}`);
+    router.push(`${basePath}?${params.toString()}`);
     setValue("");
   }
 
   return (
     <div className="flex items-center gap-1.5">
-      <span className="text-xs text-muted-foreground shrink-0">Go to page</span>
+      <span className="text-xs text-base-content-muted shrink-0">
+        Go to page
+      </span>
       <Input
         className="h-8 w-16 text-xs text-center px-1"
         max={totalPages}
@@ -58,7 +67,7 @@ export function GoToPage({ totalPages }: { totalPages: number }) {
         value={value}
       />
       <Button
-        className="h-8 border-border text-foreground hover:bg-accent"
+        className="h-8 border-base-300 text-base-content hover:bg-base-300"
         disabled={!value}
         onClick={go}
         size="sm"
@@ -67,5 +76,40 @@ export function GoToPage({ totalPages }: { totalPages: number }) {
         Go
       </Button>
     </div>
+  );
+}
+
+interface PageSizeSelectProps {
+  /** Route to push page-size changes to, e.g. "/tickets". */
+  basePath: string;
+  options: number[];
+  pageSize: number;
+}
+
+export function PageSizeSelect({
+  pageSize,
+  options,
+  basePath,
+}: PageSizeSelectProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  function handleChange(value: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("pageSize", value);
+    params.delete("page"); // reset pagination when the page size changes
+    router.push(`${basePath}?${params.toString()}`);
+  }
+
+  return (
+    <SearchableSelect
+      // Plain numbers — the "per page" context comes from the label next to
+      // the select, so a "/ page" suffix on every option would just repeat it.
+      onValueChange={handleChange}
+      options={options.map((n) => ({ value: String(n), label: String(n) }))}
+      search={false}
+      triggerClassName="h-8 w-20 text-xs"
+      value={String(pageSize)}
+    />
   );
 }

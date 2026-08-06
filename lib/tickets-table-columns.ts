@@ -22,11 +22,9 @@ export const DEFAULT_COLUMN_PREFS: ColumnPref[] = CUSTOMIZABLE_COLUMNS.map(
   (c) => ({ id: c.id, visible: true })
 );
 
-/**
- * Merge saved prefs with the known column set: drop unknown/malformed
- * entries, then append any known column the saved list doesn't mention yet
- * (e.g. a column added after the user last saved) as visible, at the end.
- */
+/** Merges saved prefs with the known column set: drops unknown or malformed
+ * entries, then appends any known column the saved list doesn't mention — one
+ * added since the user last saved — as visible, at the end. */
 export function resolveColumnPrefs(saved: unknown): ColumnPref[] {
   const result: ColumnPref[] = [];
   const seen = new Set<string>();

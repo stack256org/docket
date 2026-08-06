@@ -105,13 +105,13 @@ export function TicketTags({ ticketId, initialTags }: Props) {
     <div className="flex flex-wrap items-center gap-1.5">
       {tags.map((tag) => (
         <span
-          className="inline-flex items-center gap-1 rounded border border-border bg-accent px-2 py-1 text-xs font-medium text-foreground"
+          className="inline-flex items-center gap-1 rounded border border-base-300 bg-base-300 px-2 py-1 text-xs font-medium text-base-content"
           key={tag.id}
         >
           {tag.name}
           <button
             aria-label={`Remove tag ${tag.name}`}
-            className="text-muted-foreground hover:text-foreground cursor-pointer"
+            className="text-base-content-muted hover:text-base-content cursor-pointer"
             onClick={() => removeTag(tag)}
             type="button"
           >
@@ -131,7 +131,7 @@ export function TicketTags({ ticketId, initialTags }: Props) {
       >
         <PopoverTrigger asChild>
           <button
-            className="inline-flex items-center gap-1 rounded border border-dashed border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:border-stone transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1 rounded border border-dashed border-base-300 px-2 py-1 text-xs text-base-content-muted hover:text-base-content hover:border-stone transition-colors cursor-pointer"
             type="button"
           >
             <PlusIcon className="size-3" />
@@ -139,10 +139,10 @@ export function TicketTags({ ticketId, initialTags }: Props) {
           </button>
         </PopoverTrigger>
         <PopoverContent align="start" className="w-56 p-0">
-          <div className="border-b border-border px-2.5">
+          <div className="border-b border-base-300 px-2.5">
             <input
               autoFocus
-              className="h-9 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              className="h-9 w-full bg-transparent text-sm outline-none placeholder:text-base-content-muted"
               disabled={busy}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {
@@ -158,18 +158,18 @@ export function TicketTags({ ticketId, initialTags }: Props) {
           <div className="max-h-52 overflow-y-auto p-1">
             {canCreate && (
               <button
-                className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-sm text-foreground hover:bg-accent/60 transition-colors"
+                className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-sm text-base-content hover:bg-base-300/60 transition-colors"
                 disabled={busy}
                 onClick={() => addTag(query)}
                 type="button"
               >
-                <PlusIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                <PlusIcon className="size-3.5 shrink-0 text-base-content-muted" />
                 <span className="truncate">Create "{query.trim()}"</span>
               </button>
             )}
             {suggestions.map((tag) => (
               <button
-                className="flex w-full items-center rounded-md px-2 py-1.5 text-left text-sm text-foreground hover:bg-accent/60 transition-colors"
+                className="flex w-full items-center rounded-md px-2 py-1.5 text-left text-sm text-base-content hover:bg-base-300/60 transition-colors"
                 disabled={busy}
                 key={tag.id}
                 onClick={() => addTag(tag.name)}
@@ -179,7 +179,7 @@ export function TicketTags({ ticketId, initialTags }: Props) {
               </button>
             ))}
             {!canCreate && suggestions.length === 0 && (
-              <p className="px-2 py-4 text-center text-xs text-muted-foreground">
+              <p className="px-2 py-4 text-center text-xs text-base-content-muted">
                 {query ? "No matches" : "No tags yet"}
               </p>
             )}

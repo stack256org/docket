@@ -1,6 +1,7 @@
 "use client";
 
 import { CaretDownIcon } from "@phosphor-icons/react";
+import { formatDistanceToNow } from "date-fns";
 import type { ReactNode } from "react";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,15 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+
+/** Last credential-check outcome for sections that support one (SMTP, Google,
+ * Pusher Channels, Pusher Beams). Omit entirely for sections that can't be
+ * tested (storage), which keep the plain configured/not-configured pill. */
+interface Verification {
+  lastTestError: string | null;
+  lastTestedAt: string | null;
+  lastTestOk: boolean | null;
+}
 
 interface Props {
   children: ReactNode;
@@ -25,51 +35,87 @@ interface Props {
    * whose default is the equally-valid "local" driver, not "unset"). */
   onRemove?: () => void;
   onSave: () => void;
+  onTest?: () => void;
   removing?: boolean;
   saving: boolean;
+  testing?: boolean;
   title: string;
+  verification?: Verification;
 }
 
 /** Shared layout for the 5 integration sections on this page and in the setup
- * wizard's Integrations step — matches the bg-card/rounded-xl card pattern
+ * wizard's Integrations step — matches the bg-base-100/rounded-xl card pattern
  * used across /admin/appearance. */
 export function IntegrationCard({
   title,
   description,
   configured,
+  verification,
   note,
   saving,
   removing,
+  testing,
   onSave,
   onRemove,
+  onTest,
   collapsible = false,
   defaultOpen = false,
   children,
 }: Props) {
   const [open, setOpen] = React.useState(defaultOpen);
 
+  const badge = (() => {
+    if (!configured) {
+      return {
+        label: "Not configured",
+        className: "bg-base-300 text-base-content-muted",
+      };
+    }
+    if (!verification || verification.lastTestOk === null) {
+      return { label: "Configured", className: "bg-primary/10 text-primary" };
+    }
+    if (verification.lastTestOk) {
+      const checkedAt = verification.lastTestedAt
+        ? formatDistanceToNow(new Date(verification.lastTestedAt), {
+            addSuffix: true,
+          })
+        : null;
+      return {
+        label: checkedAt ? `Verified ${checkedAt}` : "Verified",
+        className: "bg-success/10 text-success",
+      };
+    }
+    return {
+      label: "Needs attention",
+      className: "bg-warning/10 text-warning",
+    };
+  })();
+
   const header = (
     <div className="flex items-start justify-between gap-3">
       <div>
-        <h3 className="text-sm font-medium text-foreground flex items-center gap-2">
+        <h3 className="text-sm font-medium text-base-content flex items-center gap-2">
           {title}
           <span
             className={cn(
               "inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-medium",
-              configured
-                ? "bg-primary/10 text-primary"
-                : "bg-muted text-muted-foreground"
+              badge.className
             )}
           >
-            {configured ? "Configured" : "Not configured"}
+            {badge.label}
           </span>
         </h3>
-        <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+        <p className="text-xs text-base-content-muted mt-0.5">{description}</p>
+        {verification?.lastTestOk === false && verification.lastTestError && (
+          <p className="text-xs text-warning mt-1">
+            {verification.lastTestError}
+          </p>
+        )}
       </div>
       {collapsible && (
         <CaretDownIcon
           className={cn(
-            "size-4 shrink-0 text-muted-foreground transition-transform mt-0.5",
+            "size-4 shrink-0 text-base-content-muted transition-transform mt-0.5",
             open && "rotate-180"
           )}
         />
@@ -82,7 +128,7 @@ export function IntegrationCard({
       <div className="space-y-4">{children}</div>
 
       {note && (
-        <p className="text-xs text-muted-foreground bg-accent/40 rounded-md px-3 py-2">
+        <p className="text-xs text-base-content-muted bg-base-300/40 rounded-md px-3 py-2">
           {note}
         </p>
       )}
@@ -90,7 +136,7 @@ export function IntegrationCard({
       <div className="flex items-center justify-between gap-3 pt-1">
         {configured && onRemove ? (
           <Button
-            className="text-destructive hover:text-destructive"
+            className="text-error hover:text-error"
             disabled={saving || removing}
             onClick={onRemove}
             size="sm"
@@ -102,21 +148,34 @@ export function IntegrationCard({
         ) : (
           <span />
         )}
-        <Button
-          disabled={saving || removing}
-          onClick={onSave}
-          size="sm"
-          type="button"
-        >
-          {saving ? "Saving…" : "Save"}
-        </Button>
+        <div className="flex items-center gap-2">
+          {onTest && (
+            <Button
+              disabled={saving || removing || testing}
+              onClick={onTest}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              {testing ? "Testing…" : "Test connection"}
+            </Button>
+          )}
+          <Button
+            disabled={saving || removing}
+            onClick={onSave}
+            size="sm"
+            type="button"
+          >
+            {saving ? "Saving…" : "Save"}
+          </Button>
+        </div>
       </div>
     </div>
   );
 
   if (!collapsible) {
     return (
-      <div className="bg-card rounded-xl border border-border shadow-soft p-6">
+      <div className="bg-base-100 rounded-xl border border-base-300 shadow-soft p-6">
         {header}
         {body}
       </div>
@@ -125,7 +184,7 @@ export function IntegrationCard({
 
   return (
     <Collapsible
-      className="bg-card rounded-xl border border-border shadow-soft p-6"
+      className="bg-base-100 rounded-xl border border-base-300 shadow-soft p-6"
       onOpenChange={setOpen}
       open={open}
     >

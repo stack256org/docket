@@ -5,11 +5,11 @@ export default function TicketDetailLoading() {
   return (
     <div className="flex flex-col h-full">
       {/* Top bar */}
-      <div className="flex items-center gap-3 px-6 py-4 border-b border-border shrink-0">
+      <div className="flex items-center gap-3 px-6 py-4 border-b border-base-300 shrink-0">
         <Skeleton className="h-8 w-8 rounded-md" />
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <Skeleton className="h-4 w-12 shrink-0" />
-          <Skeleton className="h-5 w-px bg-accent" />
+          <Skeleton className="h-5 w-px bg-base-300" />
           <Skeleton className="h-5 w-64" />
         </div>
         <Skeleton className="h-6 w-20 rounded-full" />
@@ -20,7 +20,7 @@ export default function TicketDetailLoading() {
         {/* Main column */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* Description card */}
-          <div className="bg-card rounded-xl border border-border shadow-soft p-5 space-y-3">
+          <div className="bg-base-100 rounded-xl border border-base-300 shadow-soft p-5 space-y-3">
             <div className="flex items-center gap-3">
               <Skeleton className="h-8 w-8 rounded-full" />
               <div className="space-y-1">
@@ -36,7 +36,7 @@ export default function TicketDetailLoading() {
           {/* Comments */}
           {skeletonKeys(3).map((k) => (
             <div
-              className="bg-card rounded-xl border border-border shadow-soft p-5 space-y-3"
+              className="bg-base-100 rounded-xl border border-base-300 shadow-soft p-5 space-y-3"
               key={k}
             >
               <div className="flex items-center gap-3">
@@ -52,7 +52,7 @@ export default function TicketDetailLoading() {
           ))}
 
           {/* Reply form */}
-          <div className="bg-card rounded-xl border border-border shadow-soft p-5 space-y-3">
+          <div className="bg-base-100 rounded-xl border border-base-300 shadow-soft p-5 space-y-3">
             <Skeleton className="h-24 w-full rounded-md" />
             <div className="flex justify-end">
               <Skeleton className="h-9 w-24 rounded-md" />
@@ -61,7 +61,7 @@ export default function TicketDetailLoading() {
         </div>
 
         {/* Sidebar */}
-        <div className="w-72 shrink-0 border-l border-border overflow-y-auto p-5 space-y-6">
+        <div className="w-72 shrink-0 border-l border-base-300 overflow-y-auto p-5 space-y-6">
           <div className="space-y-3">
             <Skeleton className="h-4 w-16" />
             <Skeleton className="h-8 w-full rounded-md" />

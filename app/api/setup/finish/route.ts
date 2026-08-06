@@ -5,11 +5,9 @@ import { platformSettings } from "@/db/schema/settings";
 import { getVerifiedSession } from "@/lib/authz";
 import { db } from "@/lib/db";
 
-// POST — marks the setup wizard as actually finished, called only from the
-// wizard's last step ("Continue to dashboard"). Until this is called,
-// `/setup` treats the wizard as unfinished and resumes it (at the
-// Integrations step) instead of redirecting away, even though the admin
-// account already exists — see `lib/setup.ts`.
+// POST — marks the wizard finished, called only from its last step. Until then
+// /setup resumes at Integrations rather than redirecting away, even though the
+// admin account already exists. See lib/setup.ts.
 export async function POST() {
   const session = await getVerifiedSession();
   const role = (session?.user.role as string | undefined) ?? "";

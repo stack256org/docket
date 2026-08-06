@@ -98,13 +98,10 @@ export async function POST(
       }
     | undefined;
 
-  // The two reply forms are mutually exclusive by construction: only the
-  // customer form ever sends `token`, only the agent form relies on a
-  // session. Check `token` FIRST and treat it as authoritative — otherwise a
-  // customer submitting from a browser that also happens to carry a valid
-  // agent session cookie (e.g. an agent testing their own portal in another
-  // tab of the same browser profile) would have their reply silently
-  // misattributed to that agent, since the session would otherwise win.
+  // Only the customer form sends `token`, only the agent form uses a session, so
+  // check `token` FIRST and treat it as authoritative. Otherwise a customer
+  // replying from a browser that also holds an agent session cookie — an agent
+  // testing the portal in another tab — is silently attributed to that agent.
   if (token) {
     const { allowed } = await checkRateLimit({
       action: "ticket_comment",

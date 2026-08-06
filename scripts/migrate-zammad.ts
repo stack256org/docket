@@ -1,60 +1,6 @@
-/**
- * One-off migration: Zammad → Docket.
- *
- * Pulls every ticket (its opening message, the full reply thread, and all
- * attachments) out of a Zammad instance over its REST API and writes them
- * straight into this app's Postgres + file storage — preserving original
- * timestamps, sender roles, internal-note flags, and "awaiting reply" state.
- *
- * Why a direct DB seed instead of POSTing to /api/v1/tickets:
- *   the public API stamps createdAt = now and auto-assigns ticket numbers, so
- *   it can't reproduce historical timestamps. Inserting directly lets us keep
- *   Zammad's created_at on every ticket and comment.
- *
- * WHAT IS AND ISN'T PRESERVED
- *   ✓ subject, opening message, full conversation, attachments (bytes copied)
- *   ✓ customer name + email (stored inline on the ticket — the Docket has
- *     no separate customer table; only agents are `user` rows)
- *   ✓ created_at on ticket + every comment, open/closed status, priority
- *   ✓ internal notes stay internal (isInternal), awaitingReply/pendingReplies
- *   ✓ tags — joined into this app's shared, case-INSENSITIVE tag pool
- *     (lib/tags.ts lowercases), so Zammad's "DTM" lands as "dtm" and any
- *     case variants of one tag collapse into a single shared row
- *   ✗ Zammad's ticket NUMBER (this app assigns its own serial; the original is
- *     recorded in a `zammad_migrated` activity row's metadata)
- *   ✓ the ASSIGNEE (Zammad's ticket owner) — matched to a Docket user by
- *     email, so the tickets list shows the same agent it did in Zammad
- *   ~ agent ACCOUNTS — run scripts/migrate-zammad-users.ts FIRST (creates a
- *     Docket `user` per Zammad agent/admin) and this script links every
- *     reply's authorId/uploadedById AND the ticket's assignee to that account
- *     by email as it migrates. If they have no matching account yet, the reply
- *     keeps the author's name/role as plain text (authorId stays null) and the
- *     ticket imports Unassigned — safe either order: every ticket records its
- *     Zammad owner in the `zammad_migrated` activity metadata, and re-running
- *     migrate-zammad-users.ts afterwards backfills the assignee from it.
- *
- * IDEMPOTENT / RESUMABLE
- *   Each migrated ticket gets a `ticket_activity` row (action "zammad_migrated",
- *   metadata { zammadTicketId }). On every run that set is loaded first and
- *   already-migrated tickets are skipped, so re-running never duplicates. A
- *   checkpoint file on the uploads volume speeds up resume after a crash.
- *
- * RUN IT — see the block comment at the bottom of this file, or scripts/README.
- *   Must run where process.cwd()/uploads is the SAME volume the app serves from
- *   (i.e. inside the `app` container), so migrated files are actually reachable.
- *
- * Required env: ZAMMAD_BASE_URL, ZAMMAD_API_TOKEN  (+ the app's own DATABASE_URL etc.)
- * Optional env:
- *   MIGRATION_DEFAULT_CATEGORY  category slug for imported tickets (default "issue")
- *   MIGRATION_ZAMMAD_SEARCH     Zammad search query to restrict the export
- *                               (e.g. 'tags:DTM') — omit to export ALL tickets
- *   MIGRATION_PER_PAGE          page size when listing Zammad tickets (default 100)
- *   MIGRATION_LIMIT             stop after seeing this many Zammad tickets
- *                               (oldest-first, since listing is sorted created_at
- *                               asc) — e.g. 100 to migrate just the first batch.
- *                               Omit for no limit.
- *   MIGRATION_DRY_RUN           "1" → read + log only, write nothing
- */
+// One-off Zammad → Docket import. Run migrate-zammad-users.ts first, inside the
+// `app` container. Writes direct to Postgres to preserve Zammad timestamps;
+// idempotent via each ticket's `zammad_migrated` row. Docs: deployment §7.
 
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -85,10 +31,9 @@ import {
   getTicketStatuses,
 } from "@/lib/ticket-config";
 
-// Host/dev runs load .env via `tsx --env-file=.env` (see the migrate:zammad
-// script in package.json) — it must happen before this file's first import,
-// since @/lib/db reads process.env.DATABASE_URL at module load time, and ESM
-// imports are hoisted ahead of any top-level statement placed here.
+// Host/dev runs load .env via `tsx --env-file=.env` (see package.json), which
+// must happen before the first import: @/lib/db reads DATABASE_URL at module
+// load, and ESM hoists imports above any top-level statement placed here.
 
 // ── Config ──────────────────────────────────────────────────────────────────
 const ZAMMAD_BASE_URL = (process.env.ZAMMAD_BASE_URL ?? "").replace(/\/+$/, "");
@@ -145,10 +90,9 @@ async function zammadGetBinary(pathname: string): Promise<Buffer> {
   return Buffer.from(await res.arrayBuffer());
 }
 
-// Zammad's tag API — GET only, matches the read-only contract of this whole
-// script. Returns [] (and logs) rather than throwing on any failure (older
-// Zammad versions or tokens without tag read access shouldn't abort a
-// ticket's migration over a non-essential field).
+// Zammad's tag API — GET only, like the rest of this script. Returns [] and
+// logs rather than throwing: an old Zammad version or a token without tag read
+// access shouldn't abort a migration over a non-essential field.
 async function getZammadTags(ticketId: number): Promise<string[]> {
   try {
     const res = await zammadGet<{ tags?: string[] }>("/tags", {
@@ -224,11 +168,9 @@ async function getZUser(id: number): Promise<ZUser | null> {
   }
 }
 
-// Zammad user id → this app's user id, resolved by email (null if the
-// Zammad user has no email or no matching Docket account — e.g. the
-// scripts/migrate-zammad-users.ts migration hasn't been run yet, in which
-// case comments/attachments just keep authorId/uploadedById null, same as
-// before this lookup existed).
+// Zammad user id → Docket user id, by email. Null when there's no email or no
+// matching account (typically migrate-zammad-users.ts hasn't run), in which
+// case comments and attachments simply keep a null author.
 const localUserIdByZammadUserId = new Map<number, string | null>();
 async function resolveLocalAuthorId(
   zammadUserId: number
@@ -346,9 +288,9 @@ function priorityForId(id: number, defaultSlug: string): string {
 }
 
 // ── Content conversion ────────────────────────────────────────────────────────
-// Zammad article bodies are usually text/html; store them as the same Tiptap
-// JSON document the app's own editor produces. Empty bodies fall back to a
-// caller-supplied placeholder so notNull columns are satisfied.
+// Zammad article bodies are usually text/html; store them as the Tiptap JSON the
+// app's editor produces. Empty bodies fall back to a caller-supplied
+// placeholder, so notNull columns are satisfied.
 function articleToRichText(article: ZArticle, fallbackPlain: string): string {
   const body = article.body ?? "";
   const isHtml = (article.content_type ?? "").toLowerCase().includes("html");
@@ -470,10 +412,9 @@ async function migrateOneTicket(
     .slice()
     .sort((a, b) => a.created_at.localeCompare(b.created_at));
 
-  // Normalized + deduped up front: this app's tag pool is case-insensitive
-  // (lib/tags.ts lowercases), so Zammad's "Billing" and "billing" resolve to
-  // the SAME tag row — and ticket_tags has a UNIQUE (ticket_id, tag_id) index
-  // that a duplicate would trip, failing the whole ticket's transaction.
+  // Normalized and deduped up front: the tag pool is case-insensitive, so
+  // "Billing" and "billing" resolve to one row — and ticket_tags' UNIQUE
+  // (ticket_id, tag_id) would fail the whole transaction on a duplicate.
   const tagNames = [
     ...new Set((await getZammadTags(zTicket.id)).map(normalizeTagName)),
   ].filter(Boolean);
@@ -484,11 +425,9 @@ async function migrateOneTicket(
   const customerName =
     zUserName(customer) || customerEmail.split("@")[0] || "Customer";
 
-  // Assignee — same email-matched lookup used for comment authors. Only
-  // resolves to a real agent if scripts/migrate-zammad-users.ts already
-  // created their account; otherwise the ticket lands unassigned for now and
-  // the owner identity recorded on the `zammad_migrated` activity row below
-  // lets migrate-zammad-users.ts link it on a later run.
+  // Assignee — same email lookup as comment authors, so it resolves only if
+  // migrate-zammad-users.ts already made the account. Otherwise the ticket lands
+  // unassigned and the owner on the `zammad_migrated` row lets a later run fix it.
   const owner =
     zTicket.owner_id && zTicket.owner_id > 1
       ? await getZUser(zTicket.owner_id)
@@ -507,11 +446,9 @@ async function migrateOneTicket(
     ? articleToRichText(opening, descriptionPlainFallback)
     : textToRichTextJson(descriptionPlainFallback);
 
-  // Resolve a display role/name/local-user-id for an article. authorId is
-  // only ever non-null when scripts/migrate-zammad-users.ts has already run
-  // and created a Docket account matching this Zammad author's email —
-  // run that script FIRST so replies link to a real user as they're migrated,
-  // rather than relying on the separate name-matching backfill it also does.
+  // Display role/name/local-user-id for an article. authorId is non-null only
+  // once migrate-zammad-users.ts has created a matching account — run it FIRST
+  // so replies link directly rather than via its name-matching backfill.
   const roleFor = async (
     article: ZArticle
   ): Promise<{
@@ -542,11 +479,9 @@ async function migrateOneTicket(
   // Opening message counts as the first customer message → pendingReplies 1.
   let pending = openingMeta.role === "customer" ? 1 : 0;
 
-  // Mirrors the activity rows the live app writes on ticket creation and on
-  // every reply (app/api/tickets/[id]/comments/route.ts, lib/tickets/create-ticket.ts)
-  // — without these, the ticket list's "Updated By" column (which reads the
-  // latest agent/admin ticketActivity row) has nothing to show for migrated
-  // tickets, even ones with real agent replies.
+  // Mirrors the activity rows the live app writes on creation and every reply.
+  // Without them the ticket list's "Updated By" column — which reads the latest
+  // agent ticketActivity row — is blank for migrated tickets.
   const activityRows: Array<typeof ticketActivity.$inferInsert> = [
     {
       id: createId(),
@@ -659,14 +594,9 @@ async function migrateOneTicket(
     };
   }
 
-  // Find-or-create every tag and the customer BEFORE opening the ticket's
-  // transaction, and never inside it: both write through the global `db`
-  // handle, so from inside tx they'd run on a *different* pooled connection —
-  // outside the transaction, invisible to it, and able to deadlock against it.
-  // Resolving first also means these rows can't disagree with the tx: they're
-  // committed up front, and the tx only inserts rows that reference them. A
-  // tag/customer left behind by a rolled-back ticket is harmless — shared
-  // pool, not ticket-owned.
+  // Tags and customer are resolved BEFORE the ticket's transaction, never inside
+  // it: they write through the global `db` handle, so from inside tx they'd hit a
+  // different pooled connection — invisible to it, and able to deadlock.
   const tagIds = await Promise.all(tagNames.map(getOrCreateTagId));
   const customerRecord = await findOrCreateCustomer(
     customerName,
@@ -741,12 +671,9 @@ async function migrateOneTicket(
           metadata: {
             zammadTicketId: zTicket.id,
             zammadNumber: zTicket.number,
-            // Owner identity, always recorded (null = the ticket had no owner
-            // in Zammad) even when it already resolved to a local account:
-            // it's what scripts/migrate-zammad-users.ts's assignee backfill
-            // matches on when tickets were migrated before the agents had
-            // accounts — and its presence tells that script it doesn't need a
-            // Zammad round-trip for this ticket.
+            // Owner identity, always recorded (null = no owner in Zammad) even
+            // when already resolved locally: migrate-zammad-users.ts's assignee
+            // backfill matches on it, and skips a Zammad round-trip when present.
             zammadOwnerId: owner?.id ?? null,
             zammadOwnerEmail: ownerEmail || null,
             zammadOwnerName: owner ? zUserName(owner) || null : null,
@@ -959,31 +886,6 @@ main()
     process.exit(1);
   });
 
-/*
- * ──────────────────────────── HOW TO RUN ────────────────────────────
- *
- * The migration MUST write into the same uploads volume the app serves from
- * (docket_uploads → /app/uploads), so run it INSIDE the app container.
- *
- * 1) DRY RUN first (reads Zammad, writes nothing — verify counts & mapping):
- *
- *    docker compose exec \
- *      -e ZAMMAD_BASE_URL="https://your-zammad.example.com" \
- *      -e ZAMMAD_API_TOKEN="your-admin-api-token" \
- *      -e MIGRATION_DRY_RUN=1 \
- *      app pnpm migrate:zammad
- *
- * 2) REAL run (safe to re-run — already-migrated tickets are skipped):
- *
- *    docker compose exec \
- *      -e ZAMMAD_BASE_URL="https://your-zammad.example.com" \
- *      -e ZAMMAD_API_TOKEN="your-admin-api-token" \
- *      app pnpm migrate:zammad
- *
- *    Optional: only DTM tickets →  -e MIGRATION_ZAMMAD_SEARCH="tags:DTM"
- *              different category →  -e MIGRATION_DEFAULT_CATEGORY="general_query"
- *              first 100 tickets only →  -e MIGRATION_LIMIT=100
- *
- * Not using Docker (host / dev, with the app's .env present and uploads/ here):
- *    ZAMMAD_BASE_URL=... ZAMMAD_API_TOKEN=... pnpm migrate:zammad
- */
+// Runnable commands (dry run first, then the real one) are in
+// docs/deployment-and-zammad-migration.md §7.1–7.3 — kept there rather than
+// duplicated here so there is one copy to keep correct.

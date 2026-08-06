@@ -37,7 +37,7 @@ export function SecretInput({
       />
       <button
         aria-label={visible ? "Hide" : "Show"}
-        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-base-content-muted hover:text-base-content transition-colors"
         disabled={disabled}
         onClick={() => setVisible((v) => !v)}
         type="button"

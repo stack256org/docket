@@ -61,7 +61,7 @@ export function TicketCustomFields({ ticketId, initialFields }: Props) {
     <div className="space-y-3">
       {fields.map((field) => (
         <div className="space-y-1" key={field.fieldId}>
-          <Label className="text-xs text-muted-foreground">
+          <Label className="text-xs text-base-content-muted">
             {field.label}
             {field.required && <span className="text-red-600">*</span>}
           </Label>
