@@ -323,19 +323,25 @@ curl -o .env https://raw.githubusercontent.com/stack256org/docket/main/.env.dock
 docker compose up -d
 ```
 
+<!-- BEGIN GENERATED: image-tags -->
 Pin a version in production, because `latest` moves with every release:
 
 ```bash
-IMAGE_TAG=1.0.0 docker compose up -d
+IMAGE_TAG=0.1.0 docker compose up -d
 ```
 
-Available tags are `latest`, the `1` / `1.4` / `1.4.2` ladder, `main` (rebuilt on every
-change, expect rough edges), and a fixed `sha-<short>` per build. Each carries builds for
-both Intel and ARM machines:
+Available tags are `latest`, the `0` / `0.1` / `0.1.0` ladder, `main` (rebuilt on
+every change, expect rough edges), and a fixed `sha-<short>` per build. Each carries builds
+for both Intel and ARM machines:
 
 ```bash
-docker pull ghcr.io/stack256org/docket:latest
+docker pull ghcr.io/stack256org/docket:0.1.0
 ```
+<!-- END GENERATED: image-tags -->
+
+<sub>The block above is generated from the `version` in `package.json` by
+`scripts/sync-readme.mjs`, and CI fails if it drifts. Run `pnpm docs:sync` after a version
+bump rather than editing it by hand.</sub>
 
 Images come from [GitHub Packages](https://github.com/stack256org/docket/pkgs/container/docket).
 No account is needed to download them, and there are no rate limits.

@@ -27,11 +27,14 @@ $EDITOR package.json          # "version": "0.2.0"
 #    because its contents become the body of the GitHub Release.
 $EDITOR CHANGELOG.md          # ## [0.2.0] - 2026-08-14
 
-# 3. Commit and push. That is the whole release.
+# 3. Bring the README's tag ladder along with it. CI fails if you skip this.
+pnpm docs:sync
+
+# 4. Commit and push. That is the whole release.
 git commit -am "Docket 0.2.0"
 git push
 
-# 4. Watch it. 10 to 20 minutes, because the ARM build is emulated.
+# 5. Watch it. 10 to 20 minutes, because the ARM build is emulated.
 gh run watch
 ```
 
@@ -53,6 +56,13 @@ The workflow stops before publishing anything if:
   deleted from a public repository
 - `CHANGELOG.md` has no `## [<version>]` section, because a release with an empty body is
   worse than a failed build
+- CI's **README is in step with the version** step fails, because `README.md`'s generated
+  tag ladder no longer matches `package.json`. Run `pnpm docs:sync` and commit the result.
+
+And after publishing, the **Anyone can pull it** job asks `ghcr.io` — anonymously, with no
+credentials at all — whether a customer could actually pull what was just pushed. It does
+not block the tag or the release, since the image is already published by then; it turns
+the run red so a private package is caught here instead of by a customer.
 
 ---
 
@@ -60,12 +70,20 @@ The workflow stops before publishing anything if:
 
 ### 1. Make the package public, after the first successful build
 
-This is the step that is easy to miss. A new GitHub Packages entry is **private**, even in
-a public repository, so `docker pull` fails for anyone who is not signed in.
+This is the step that is easy to miss, and it is easy to miss because every signal a
+maintainer sees is identical either way: the build is green, the tags exist, the release is
+published. A new GitHub Packages entry is **private**, even in a public repository, so
+`docker pull` fails for anyone who is not signed in — which for 0.1.0 meant every customer
+following the README's own commands got a bare `403 Forbidden`.
 
 1. Repository main page → **Packages** in the right-hand sidebar.
 2. Click **docket**.
 3. **Package settings → Danger Zone → Change visibility → Public.**
+
+The **Anyone can pull it** job now fails the release run until this is done, so it is no
+longer something you have to remember — but it still has to be done by hand once. GitHub
+exposes no API for package visibility; the REST API covers only get, delete and restore, so
+the web UI is the only way.
 
 Use **Connect repository** while you are there if the package is not already linked. That
 is what puts the README on the package page and the package in the repository sidebar.

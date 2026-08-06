@@ -289,10 +289,17 @@ the same PR if behavior changes.
 
 ## CI
 
-`.github/workflows/ci.yml` runs on every PR and push to `main`: `pnpm typecheck`,
-`pnpm lint`, `pnpm build`, plus a job that applies migrations against a real Postgres and
-fails if `db/schema/` changed without a generated migration. Run all three locally before
-pushing.
+`.github/workflows/ci.yml` runs on every PR and push to `main`: `pnpm docs:check`,
+`pnpm typecheck`, `pnpm lint`, `pnpm build`, plus a job that applies migrations against a
+real Postgres and fails if `db/schema/` changed without a generated migration. Run all of
+them locally before pushing.
+
+`pnpm docs:check` runs first, before `pnpm install`, because it is dependency-free and a
+stale README should not wait behind a full Next build. The `README.md` region between
+`<!-- BEGIN GENERATED: image-tags -->` and its `END` marker is generated from the `version`
+in `package.json` by `scripts/sync-readme.mjs` — **do not edit it by hand**; bump the
+version and run `pnpm docs:sync`. It exists because the README advertised a `1` / `1.4` /
+`1.4.2` tag ladder while 0.1.0 was the only release that had ever shipped.
 
 `.github/workflows/release.yml` runs **after `ci.yml` succeeds on `main`** (a `workflow_run`
 trigger, not `push`), so the two never run concurrently and a red CI publishes nothing. It

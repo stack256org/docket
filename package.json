@@ -42,6 +42,8 @@
     "lint:fix": "biome check --write",
     "format": "biome format --write",
     "typecheck": "tsc --noEmit",
+    "docs:sync": "node scripts/sync-readme.mjs",
+    "docs:check": "node scripts/sync-readme.mjs --check",
     "worker": "tsx --watch scripts/worker.ts",
     "worker:start": "tsx scripts/worker.ts",
     "db:local": "tsx scripts/dev-db.ts",
