@@ -8,11 +8,12 @@
 # which on a small server is slow and memory-hungry. Use plain docker-compose.yml
 # instead, which pulls a published image.
 #
-# Two reasons to build:
-#   - you changed the code
-#   - you need the optional Pusher features, whose NEXT_PUBLIC_* values are
-#     compiled into the browser code and therefore cannot come from a shared
-#     published image
+# The main reason to build is that you changed the code. Pusher no longer
+# requires it: set the Beams/Channels values from Admin → Integrations (or
+# scripts/setup.ts's wizard) and the plain published image picks them up at
+# runtime with just a page refresh — see lib/integration-settings.ts and
+# app/api/config/client/route.ts. The build-arg path below still exists for
+# anyone who prefers setting NEXT_PUBLIC_PUSHER_* via .env instead.
 #
 # The one-shot `migrate` service runs DB migrations + seeds before app/worker start.
 #

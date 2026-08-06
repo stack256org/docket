@@ -65,10 +65,15 @@ falls back to the in-app bell with zero setup.
 **Enable it:**
 
 1. Create a Beams instance at https://dashboard.pusher.com → Beams.
-2. Set env vars:
-   - `NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID` — the instance id (read by the browser;
-     **baked in at build time** — for Docker pass it as a build arg, see README).
-   - `PUSHER_BEAMS_SECRET_KEY` — the secret key (server only).
+2. Set the instance id and secret key from **Admin → Integrations** (or the
+   setup wizard's Integrations step) — takes effect immediately, no restart
+   or rebuild. `NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID` / `PUSHER_BEAMS_SECRET_KEY`
+   are still supported as an env var fallback (a DB-saved value wins when
+   both are set — see `lib/integration-settings.ts`). The instance id used to
+   need baking into the browser bundle at Docker build time; it no longer
+   does — `components/agent/push-init.tsx` fetches it at runtime from
+   `GET /api/config/client` instead of reading `NEXT_PUBLIC_*` directly, so
+   the plain published image works without a rebuild.
 
 **How it works:**
 

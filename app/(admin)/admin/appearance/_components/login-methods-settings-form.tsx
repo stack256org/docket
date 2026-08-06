@@ -84,7 +84,7 @@ export function LoginMethodsSettingsForm({
       label: "Google",
       description: googleConfigured
         ? "Sign in with a Google account."
-        : "Not available — GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET aren't set.",
+        : "Not available — add a Client ID and Secret under Integrations first.",
       disabled: !googleConfigured,
     },
   ];

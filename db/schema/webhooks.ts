@@ -4,7 +4,7 @@ import { user } from "@/db/schema/auth";
 
 // An admin-configured destination that gets a signed POST when a subscribed
 // ticket event happens (see lib/webhooks/dispatch.ts). `secretEncrypted` is
-// AES-256-GCM encrypted at rest (lib/webhooks/crypto.ts, key derived from
+// AES-256-GCM encrypted at rest (lib/crypto.ts, key derived from
 // env.APP_SECRET) rather than hashed like api_keys.keyHash — unlike an API
 // key (only ever compared against an inbound-supplied value), this secret
 // must be recoverable by our own server to sign outgoing requests. The admin

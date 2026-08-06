@@ -52,12 +52,16 @@ Edit `.env` and set at minimum:
 | `NEXT_PUBLIC_APP_URL` | Yes | The public URL this instance will be reached at, e.g. `https://support.yourco.com`. No trailing slash. |
 | `DATABASE_URL` | Only for Option B | Already pre-filled to match the bundled Postgres for Option A — leave as-is. |
 
-Optional but recommended:
+Optional but recommended — and skippable here entirely: SMTP, Google OAuth,
+and Pusher can all be set later from the app itself (the setup wizard's
+Integrations step, or **Admin → Integrations**) instead of editing `.env`.
+Env vars below remain supported as a fallback for anything not configured
+that way:
 
 | Variable | Purpose |
 |---|---|
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `EMAIL_FROM` | Without these, outgoing email (ticket notifications, magic links) is only logged, never actually sent. |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Enables "Continue with Google" login for agents. |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Enables "Continue with Google" login for agents. Set via Integrations instead? An app restart (`docker compose restart app`) is needed before it takes effect — every other integration here applies live. |
 
 Storage defaults to local disk (`./uploads`, mounted as a persistent Docker
 volume already in `docker-compose.yml` — no action needed). If you'd rather
@@ -107,12 +111,18 @@ The `app` container only `expose`s port 3000 (not published to the host).
 Put Nginx or Caddy in front for TLS termination and proxy to `:3000`, then
 point `NEXT_PUBLIC_APP_URL` in `.env` at the final public HTTPS URL.
 
-If you change `NEXT_PUBLIC_APP_URL` or any `NEXT_PUBLIC_PUSHER_*` var after
-the first build, you must rebuild (not just restart) for it to take effect:
+If you change `NEXT_PUBLIC_APP_URL` after the first build, you must rebuild
+(not just restart) for it to take effect:
 
 ```bash
 docker compose build && docker compose up -d
 ```
+
+Pusher's `NEXT_PUBLIC_PUSHER_*` values don't have this problem anymore if
+set from Admin → Integrations — the browser fetches them at runtime, no
+rebuild ever needed (see `docs/realtime-updates.md`). The rebuild
+requirement only still applies if you set them via `.env` and build with
+`docker-compose.build.yml`.
 
 ---
 

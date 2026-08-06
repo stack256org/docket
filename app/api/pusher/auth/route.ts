@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unknown channel." }, { status: 403 });
   }
 
-  const authResponse = authorizeChannel(socketId, channel);
+  const authResponse = await authorizeChannel(socketId, channel);
   if (!authResponse) {
     return NextResponse.json({ error: "Not configured." }, { status: 404 });
   }

@@ -2,18 +2,15 @@
 
 import { useEffect } from "react";
 
-const INSTANCE_ID = process.env.NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID;
-
 /**
  * Registers the current agent's browser with Pusher Beams so they receive OS-level
- * push notifications. No-op when Beams isn't configured (`NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID`
- * unset) or the browser can't support web push. Renders nothing.
+ * push notifications. No-op when Beams isn't configured (fetched at runtime from
+ * /api/config/client — see lib/pusher-browser.ts for why this isn't read off
+ * NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID directly) or the browser can't support web
+ * push. Renders nothing.
  */
 export function PushInit({ userId }: { userId: string }) {
   useEffect(() => {
-    if (!INSTANCE_ID) {
-      return;
-    }
     if (typeof window === "undefined") {
       return;
     }
@@ -25,11 +22,18 @@ export function PushInit({ userId }: { userId: string }) {
 
     (async () => {
       try {
+        const { beamsInstanceId } = (await fetch("/api/config/client").then(
+          (res) => res.json()
+        )) as { beamsInstanceId: string | null };
+        if (!beamsInstanceId || cancelled) {
+          return;
+        }
+
         const PusherPushNotifications = await import(
           "@pusher/push-notifications-web"
         );
         const beamsClient = new PusherPushNotifications.Client({
-          instanceId: INSTANCE_ID as string,
+          instanceId: beamsInstanceId,
         });
         const tokenProvider = new PusherPushNotifications.TokenProvider({
           url: "/api/notifications/beams-auth",

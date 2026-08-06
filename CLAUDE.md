@@ -190,6 +190,42 @@ Ticket **descriptions** (submit form) and **replies** (both customer and agent) 
 - Always delete the storage file before deleting the DB record.
 - Generate serving URLs on demand via `storage.url(key)` — never persist URLs.
 
+### Integration Settings (SMTP, Google OAuth, Pusher, Storage)
+
+- Only `DATABASE_URL`, `APP_SECRET`, and `NEXT_PUBLIC_APP_URL` are true env-only
+  requirements. Everything else optional in `lib/env.ts` (SMTP, Google OAuth,
+  Pusher Beams/Channels, S3/R2 storage) can instead be set from the setup
+  wizard's skippable "Integrations" step or **Admin → Integrations**, backed by
+  the single-row `integration_settings` table (`db/schema/integration-settings.ts`).
+- **Resolution rule:** `lib/integration-settings.ts` exports one getter per
+  integration (`getSmtpSettings()`, `getGoogleOAuthSettings()`,
+  `getPusherBeamsSettings()`, `getPusherChannelsSettings()`,
+  `getStorageSettings()`, plus `getPusherClientConfig()` for public-only
+  browser values). Each: DB value wins per field, env var is the fallback —
+  so a value saved via Integrations overrides `.env`, and an install that only
+  ever used `.env` sees zero behavior change (its DB row is empty).
+- **Secrets** (`smtpPassEncrypted`, `googleClientSecretEncrypted`, etc.) are
+  AES-256-GCM encrypted at rest via `lib/crypto.ts` (key derived from
+  `APP_SECRET`), decrypted only server-side. `GET /api/admin/integration-settings`
+  never returns plaintext secrets — only `has<Field>: boolean`.
+- **Applies live (no restart), per-call DB read:** SMTP (`lib/smtp/client.ts`),
+  Pusher Channels/Beams server-side (`lib/realtime.ts`, `lib/push.ts` —
+  deliberately no permanent client singleton), storage driver (`lib/storage.ts`).
+- **Google OAuth is the one exception:** `lib/auth.ts` builds `betterAuth()`
+  once, synchronously, at module evaluation (`socialProviders` is baked into
+  the singleton via a top-level `await getGoogleOAuthSettings()`) — changing
+  Google credentials needs an app restart (`docker compose restart app`) to
+  take effect, unlike everything else here. See `docs/authentication.md`.
+- **`NEXT_PUBLIC_PUSHER_KEY` / `NEXT_PUBLIC_PUSHER_CLUSTER` /
+  `NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID`** are the only values that were ever
+  genuinely build-time (Next.js inlines `NEXT_PUBLIC_*` into the browser bundle).
+  Client code (`lib/pusher-browser.ts`, `components/agent/push-init.tsx`) now
+  fetches them at runtime from unauthenticated `GET /api/config/client` instead
+  of reading `process.env.NEXT_PUBLIC_*` directly — so Integrations-configured
+  Pusher works with the plain published Docker image, no rebuild. `.env`-based
+  config for these two still goes through the old build-arg path if you build
+  from source (`docker-compose.build.yml`).
+
 ### Database
 
 - Drizzle ORM. Schema files in `db/schema/`, migrations in `db/migrations/`.

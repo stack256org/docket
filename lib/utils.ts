@@ -38,7 +38,7 @@ export function skeletonKeys(count: number, prefix = "sk"): string[] {
   return Array.from({ length: count }, (_, i) => `${prefix}-${i}`)
 }
 
-/** First letters of the first two words, e.g. "Sahaj Tavethiya" → "ST". */
+/** First letters of the first two words, e.g. "John Doe" → "JD". */
 export function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean)
   if (parts.length >= 2) {

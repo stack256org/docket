@@ -3,6 +3,7 @@ export * from "@/db/schema/auth";
 export * from "@/db/schema/customers";
 export * from "@/db/schema/tickets";
 export * from "@/db/schema/settings";
+export * from "@/db/schema/integration-settings";
 export * from "@/db/schema/email-outbox";
 export * from "@/db/schema/email-events";
 export * from "@/db/schema/audit-logs";

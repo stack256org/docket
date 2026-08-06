@@ -1,52 +1,38 @@
 import PusherServer from "pusher";
-import { env } from "@/lib/env";
+import { getPusherChannelsSettings } from "@/lib/integration-settings";
 
-let client: PusherServer | null = null;
-
-function getClient(): PusherServer | null {
-  if (client) {
-    return client;
-  }
-  const {
-    PUSHER_APP_ID,
-    NEXT_PUBLIC_PUSHER_KEY,
-    PUSHER_SECRET,
-    NEXT_PUBLIC_PUSHER_CLUSTER,
-  } = env;
-  if (
-    !(
-      PUSHER_APP_ID &&
-      NEXT_PUBLIC_PUSHER_KEY &&
-      PUSHER_SECRET &&
-      NEXT_PUBLIC_PUSHER_CLUSTER
-    )
-  ) {
+// No permanent singleton here on purpose: settings can change at runtime via
+// /admin/integrations (see lib/integration-settings.ts), and constructing a
+// PusherServer instance is cheap local object setup (no network call), so
+// each call just resolves current settings and builds fresh.
+async function getClient(): Promise<PusherServer | null> {
+  const settings = await getPusherChannelsSettings();
+  if (!settings) {
     return null;
   }
-  client = new PusherServer({
-    appId: PUSHER_APP_ID,
-    key: NEXT_PUBLIC_PUSHER_KEY,
-    secret: PUSHER_SECRET,
-    cluster: NEXT_PUBLIC_PUSHER_CLUSTER,
+  return new PusherServer({
+    appId: settings.appId,
+    key: settings.key,
+    secret: settings.secret,
+    cluster: settings.cluster,
     useTLS: true,
   });
-  return client;
 }
 
 /** Whether Pusher Channels (real-time updates) is configured for this instance. */
-export function isRealtimeConfigured(): boolean {
-  return getClient() !== null;
+export async function isRealtimeConfigured(): Promise<boolean> {
+  return (await getClient()) !== null;
 }
 
 /**
  * Authorize a client's private-channel subscription. Returns null when
  * Channels isn't configured — callers should respond 404 in that case.
  */
-export function authorizeChannel(
+export async function authorizeChannel(
   socketId: string,
   channel: string
-): { auth: string } | null {
-  const c = getClient();
+): Promise<{ auth: string } | null> {
+  const c = await getClient();
   return c ? c.authorizeChannel(socketId, channel) : null;
 }
 
@@ -56,7 +42,8 @@ export function authorizeChannel(
  * client just triggers a refetch rather than rendering pushed data directly.
  */
 export async function publishTicketCreated(): Promise<void> {
-  await getClient()?.trigger("private-tickets", "ticket.created", {});
+  const c = await getClient();
+  await c?.trigger("private-tickets", "ticket.created", {});
 }
 
 /**
@@ -67,11 +54,8 @@ export async function publishTicketCreated(): Promise<void> {
 export async function publishTicketCommentCreated(
   ticketId: string
 ): Promise<void> {
-  await getClient()?.trigger(
-    `private-ticket-${ticketId}`,
-    "comment.created",
-    {}
-  );
+  const c = await getClient();
+  await c?.trigger(`private-ticket-${ticketId}`, "comment.created", {});
 }
 
 /**
@@ -82,9 +66,6 @@ export async function publishTicketCommentCreated(
 export async function publishNotificationCreated(
   userId: string
 ): Promise<void> {
-  await getClient()?.trigger(
-    `private-user-${userId}`,
-    "notification.created",
-    {}
-  );
+  const c = await getClient();
+  await c?.trigger(`private-user-${userId}`, "notification.created", {});
 }

@@ -11,7 +11,34 @@ import { enqueueEmail } from "@/lib/email";
 import { magicLinkTemplate } from "@/lib/email/templates/magic-link";
 import { resetPasswordTemplate } from "@/lib/email/templates/reset-password";
 import { env } from "@/lib/env";
+import { getGoogleOAuthSettings } from "@/lib/integration-settings";
 import { getEmailBranding, getPlatformSettings } from "@/lib/settings";
+
+// Top-level await: resolved once, the first time this module is imported in
+// a given server process, then baked into the betterAuth() singleton below
+// for the process's lifetime. Google OAuth credentials changed later via
+// /admin/integrations therefore only take effect after an app restart — see
+// docs/authentication.md. Every other integration in this app (SMTP, Pusher,
+// storage) reads its settings per-call instead and applies changes live;
+// Google is the one exception because Better Auth builds `socialProviders`
+// once, synchronously, right here.
+//
+// Never let this throw: `next build`'s page-data-collection phase imports
+// this module (via proxy.ts and route handlers) against the Dockerfile's
+// placeholder DATABASE_URL, which has no real Postgres to query — and at
+// real runtime, a DB hiccup on the very first request that imports this
+// module shouldn't take the whole server down. Either way, falling back to
+// "Google not configured" is the same failure mode as the env vars simply
+// being unset, and self-heals on the next restart.
+let googleOAuth: Awaited<ReturnType<typeof getGoogleOAuthSettings>> = null;
+try {
+  googleOAuth = await getGoogleOAuthSettings();
+} catch (error) {
+  console.warn(
+    "[auth] Could not resolve Google OAuth settings at startup — Google sign-in disabled until next restart.",
+    error
+  );
+}
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -55,11 +82,11 @@ export const auth = betterAuth({
     },
   },
   socialProviders: {
-    ...(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
+    ...(googleOAuth
       ? {
           google: {
-            clientId: env.GOOGLE_CLIENT_ID,
-            clientSecret: env.GOOGLE_CLIENT_SECRET,
+            clientId: googleOAuth.clientId,
+            clientSecret: googleOAuth.clientSecret,
           },
         }
       : {}),

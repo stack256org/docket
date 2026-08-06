@@ -1,35 +1,44 @@
 "use client";
 
-const KEY = process.env.NEXT_PUBLIC_PUSHER_KEY;
-const CLUSTER = process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
+// Fetched at runtime from the server instead of read off
+// `process.env.NEXT_PUBLIC_PUSHER_*` — those are inlined into the bundle at
+// Docker *build* time, which is exactly the rebuild requirement this avoids.
+// See app/api/config/client/route.ts.
+let configPromise: Promise<{
+  pusherKey: string | null;
+  pusherCluster: string | null;
+}> | null = null;
+
+function getClientConfig() {
+  configPromise ??= fetch("/api/config/client")
+    .then((res) => res.json())
+    .catch(() => ({ pusherKey: null, pusherCluster: null }));
+  return configPromise;
+}
 
 let clientPromise: Promise<import("pusher-js").default | null> | null = null;
 
 /**
  * Lazily creates (and reuses) a single Pusher Channels client for the whole
  * tab. Dynamic-imports `pusher-js` so it stays out of the main bundle for
- * self-hosters who never configure this. Resolves to null when
- * NEXT_PUBLIC_PUSHER_KEY / NEXT_PUBLIC_PUSHER_CLUSTER aren't set.
+ * self-hosters who never configure this. Resolves to null when Pusher
+ * Channels isn't configured (see /api/config/client).
  */
 export function getPusherClient(): Promise<import("pusher-js").default | null> {
-  if (clientPromise) {
-    return clientPromise;
-  }
-  if (!(KEY && CLUSTER)) {
-    clientPromise = Promise.resolve(null);
-    return clientPromise;
-  }
-
-  clientPromise = import("pusher-js").then(
-    ({ default: Pusher }) =>
-      new Pusher(KEY, {
-        cluster: CLUSTER,
-        channelAuthorization: {
-          endpoint: "/api/pusher/auth",
-          transport: "ajax",
-        },
-      })
-  );
+  clientPromise ??= (async () => {
+    const { pusherKey, pusherCluster } = await getClientConfig();
+    if (!(pusherKey && pusherCluster)) {
+      return null;
+    }
+    const { default: Pusher } = await import("pusher-js");
+    return new Pusher(pusherKey, {
+      cluster: pusherCluster,
+      channelAuthorization: {
+        endpoint: "/api/pusher/auth",
+        transport: "ajax",
+      },
+    });
+  })();
   return clientPromise;
 }
 
@@ -41,22 +50,21 @@ export function getPusherClient(): Promise<import("pusher-js").default | null> {
  * cached like `getPusherClient()` because the customer portal lets a
  * customer navigate between sibling tickets, each with a different token.
  */
-export function getPusherClientForCustomer(
+export async function getPusherClientForCustomer(
   token: string
 ): Promise<import("pusher-js").default | null> {
-  if (!(KEY && CLUSTER)) {
-    return Promise.resolve(null);
+  const { pusherKey, pusherCluster } = await getClientConfig();
+  if (!(pusherKey && pusherCluster)) {
+    return null;
   }
 
-  return import("pusher-js").then(
-    ({ default: Pusher }) =>
-      new Pusher(KEY, {
-        cluster: CLUSTER,
-        channelAuthorization: {
-          endpoint: "/api/pusher/auth",
-          transport: "ajax",
-          params: { token },
-        },
-      })
-  );
+  const { default: Pusher } = await import("pusher-js");
+  return new Pusher(pusherKey, {
+    cluster: pusherCluster,
+    channelAuthorization: {
+      endpoint: "/api/pusher/auth",
+      transport: "ajax",
+      params: { token },
+    },
+  });
 }

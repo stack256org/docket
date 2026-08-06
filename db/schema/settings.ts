@@ -23,5 +23,11 @@ export const platformSettings = pgTable("platform_settings", {
   ticketEmailNotificationsEnabled: boolean("ticket_email_notifications_enabled")
     .notNull()
     .default(true),
+  // Set only when the setup wizard's Integrations step is explicitly finished
+  // (or skipped via its "Continue to dashboard" button) — null means the
+  // admin account exists but the wizard itself hasn't been completed yet, so
+  // `/setup` should resume it rather than treat setup as done. See
+  // `lib/setup.ts`'s `isSetupComplete()` vs `hasAdminUser()`.
+  setupCompletedAt: timestamp("setup_completed_at", { withTimezone: true }),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

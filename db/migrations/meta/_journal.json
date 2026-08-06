@@ -8,6 +8,20 @@
       "when": 1785844474787,
       "tag": "0000_conscious_titanium_man",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785908847732,
+      "tag": "0001_add_integration_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785913355013,
+      "tag": "0002_regular_old_lace",
+      "breakpoints": true
     }
   ]
 }

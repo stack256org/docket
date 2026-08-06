@@ -1,8 +1,6 @@
 import { createHmac } from "node:crypto";
 import PushNotifications from "@pusher/push-notifications-server";
-
-const instanceId = process.env.NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID;
-const secretKey = process.env.PUSHER_BEAMS_SECRET_KEY;
+import { getPusherBeamsSettings } from "@/lib/integration-settings";
 
 // Tolerance (seconds) subtracted from the token's `iat` so that a dev machine
 // whose clock runs slightly ahead of Pusher's servers doesn't get the token
@@ -18,22 +16,22 @@ function base64url(input: Buffer | string): string {
     .replace(/=+$/, "");
 }
 
-let client: PushNotifications | null = null;
-
-function getClient(): PushNotifications | null {
-  if (client) {
-    return client;
-  }
-  if (!instanceId || !secretKey) {
+// No permanent singleton here on purpose — see the matching comment in
+// lib/realtime.ts. Settings can change at runtime via /admin/integrations.
+async function getClient(): Promise<PushNotifications | null> {
+  const settings = await getPusherBeamsSettings();
+  if (!settings) {
     return null;
   }
-  client = new PushNotifications({ instanceId, secretKey });
-  return client;
+  return new PushNotifications({
+    instanceId: settings.instanceId,
+    secretKey: settings.secretKey,
+  });
 }
 
 /** Whether Pusher Beams push is configured for this instance. */
-export function isPushConfigured(): boolean {
-  return Boolean(instanceId && secretKey);
+export async function isPushConfigured(): Promise<boolean> {
+  return (await getPusherBeamsSettings()) !== null;
 }
 
 /**
@@ -45,10 +43,14 @@ export function isPushConfigured(): boolean {
  * token is rejected with "Token used before issued". The signed claims otherwise
  * match what the Beams SDK produces.
  */
-export function generateBeamsToken(userId: string): { token: string } | null {
-  if (!(instanceId && secretKey) || !userId) {
+export async function generateBeamsToken(
+  userId: string
+): Promise<{ token: string } | null> {
+  const settings = await getPusherBeamsSettings();
+  if (!settings || !userId) {
     return null;
   }
+  const { instanceId, secretKey } = settings;
 
   const now = Math.floor(Date.now() / 1000);
   const iat = now - CLOCK_SKEW_LEEWAY_SECONDS;
@@ -79,7 +81,7 @@ export async function publishPushToUsers(
   userIds: string[],
   data: { title: string; body: string; deepLink?: string }
 ): Promise<void> {
-  const c = getClient();
+  const c = await getClient();
   const ids = [...new Set(userIds)].filter(Boolean);
   if (!c || ids.length === 0) {
     return;

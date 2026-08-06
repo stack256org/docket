@@ -62,14 +62,18 @@ The `uuid` segment ensures no filename collisions if the same filename is upload
 
 ### `STORAGE_DRIVER` — choosing a driver
 
-Set via env var (see `.env.example`). Validated at boot in `lib/env.ts` — an
-`s3`/`r2` driver missing its required config throws immediately on startup,
-not on first upload attempt.
+Set from **Admin → Integrations** (or the setup wizard's Integrations step)
+— takes effect on the next upload/download/delete, no restart needed. Env
+vars (see `.env.example`) remain a fallback for any field the DB doesn't
+have a value for; a driver/credential missing from both throws when storage
+is actually used (`getStorageSettings()` in `lib/integration-settings.ts`),
+not eagerly at boot like before — the driver can now come from the DB, which
+an eager boot-time env parse can't see.
 
-| `STORAGE_DRIVER` | Backend | Required env vars |
+| `STORAGE_DRIVER` | Backend | Required config |
 |---|---|---|
 | `local` (default) | Local disk | none |
-| `s3` | AWS S3, or any S3-compatible provider | `S3_BUCKET`, `S3_REGION` (+ AWS credentials — see below) |
+| `s3` | AWS S3, or any S3-compatible provider | `S3_BUCKET`, `S3_REGION` (+ credentials — see below) |
 | `r2` | Cloudflare R2 | `R2_BUCKET`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` |
 
 Optional for either cloud driver: `STORAGE_PUBLIC_BASE_URL` (a CDN/custom
@@ -102,11 +106,14 @@ bucket directly.
   `files-sdk/r2`), dynamically imported only when selected — the default
   `local` path never loads it, so there's no added cold-start cost for
   deployments that don't use it.
-- S3 credentials come from the standard AWS credential chain
-  (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` env vars, an IAM role,
-  or a shared profile) — not a Docket-specific variable.
-- R2 credentials (`R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`) are read
-  directly by the adapter under those exact names.
+- S3 credentials: enter an access key/secret from Admin → Integrations, or
+  fall back to the standard AWS credential chain (`AWS_ACCESS_KEY_ID` /
+  `AWS_SECRET_ACCESS_KEY` env vars, an IAM role, or a shared profile) — not
+  a Docket-specific variable, so it's only used when Integrations has
+  nothing saved.
+- R2 credentials: same idea — Integrations, or `R2_ACCESS_KEY_ID` /
+  `R2_SECRET_ACCESS_KEY` env vars as a fallback (the adapter reads those
+  exact names itself when neither is passed explicitly).
 - Survives host loss and works across multiple app replicas — no volume
   to manage, unlike `local`.
 - Any other S3-compatible provider (MinIO, DigitalOcean Spaces, Backblaze

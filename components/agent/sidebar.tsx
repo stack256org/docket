@@ -11,6 +11,7 @@ import {
   KeyIcon,
   ListChecksIcon,
   PaintBrushIcon,
+  PlugsIcon,
   ShieldCheckIcon,
   SquaresFourIcon,
   TagIcon,
@@ -53,6 +54,7 @@ const adminItems = [
   { href: "/admin/users", label: "Users", icon: UsersIcon },
   { href: "/admin/reports", label: "Reports", icon: ChartBarIcon },
   { href: "/admin/appearance", label: "Appearance", icon: PaintBrushIcon },
+  { href: "/admin/integrations", label: "Integrations", icon: PlugsIcon },
   { href: "/admin/ticket-config", label: "Ticket Config", icon: TagIcon },
   {
     href: "/admin/custom-fields",
