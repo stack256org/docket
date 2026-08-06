@@ -103,7 +103,7 @@ const HEADER_PARAMS = [
     in: "header",
     required: true,
     description:
-      "The event name, e.g. `ticket.created` — matches the body's `event` field. Also sent as the deprecated `X-Support-Tool-Event`.",
+      "The event name, e.g. `ticket.created` — matches the body's `event` field.",
     schema: { type: "string" },
   },
   {

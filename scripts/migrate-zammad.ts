@@ -963,7 +963,7 @@ main()
  * ──────────────────────────── HOW TO RUN ────────────────────────────
  *
  * The migration MUST write into the same uploads volume the app serves from
- * (support_tool_uploads → /app/uploads), so run it INSIDE the app container.
+ * (docket_uploads → /app/uploads), so run it INSIDE the app container.
  *
  * 1) DRY RUN first (reads Zammad, writes nothing — verify counts & mapping):
  *

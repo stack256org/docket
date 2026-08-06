@@ -240,8 +240,8 @@ const DARK_THEME_VARS: Record<string, ThemeVars> = {
   },
 };
 
-const LS_THEME = "support_tool_theme";
-const LS_APPEARANCE = "support_tool_appearance";
+const LS_THEME = "docket_theme";
+const LS_APPEARANCE = "docket_appearance";
 
 export function ThemeProvider({
   children,

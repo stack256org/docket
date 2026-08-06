@@ -88,7 +88,7 @@ bucket directly.
 - **In Docker, this directory MUST be a persistent volume, or every
   redeploy wipes all uploaded files** (the container filesystem resets
   from the image each time). All three compose files already mount one, pinned to the
-  literal name `support_tool_uploads` (not left to Compose's default
+  literal name `docket_uploads` (not left to Compose's default
   `<project>_<volume>` auto-naming), because some deploy tools don't keep
   the compose project name stable across redeploys, which silently
   creates a fresh, empty volume each time and orphans the old one.
@@ -96,7 +96,7 @@ bucket directly.
   (Dokploy, Coolify, etc.) rather than running `docker compose up -d`
   against these files directly, verify on the host that the SAME volume
   name is reused across deploys: `docker volume ls`, then
-  `docker volume inspect support_tool_uploads` should show the same
+  `docker volume inspect docket_uploads` should show the same
   volume before and after a redeploy, with `Mountpoint` contents that
   persist.
 

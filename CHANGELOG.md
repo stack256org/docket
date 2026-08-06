@@ -9,7 +9,12 @@ Anything needing manual work on upgrade is called out under **Upgrade notes**.
 
 ## [Unreleased]
 
-Nothing yet.
+### Changed
+
+- Finished the rename to Docket: the Postgres database and Docker volumes
+  (`support_tool` → `docket`, `support_tool_pgdata` → `docket_pgdata`,
+  `support_tool_uploads` → `docket_uploads`) and the `X-Support-Tool-*`
+  webhook header aliases are gone. `X-Docket-*` headers are unaffected.
 
 ## [0.1.0] - 2026-07-31
 

@@ -11,7 +11,7 @@ import Script from "next/script";
 // itself, so it actually runs pre-paint; a plain JSX <script> is patched in
 // via React's normal DOM diffing, which browsers never execute.
 export function ThemeScript({ appearanceMode }: { appearanceMode: string }) {
-  const js = `(function(){try{var a=localStorage.getItem('support_tool_appearance')||'${appearanceMode}';var d=a==='dark'||(a==='auto'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList[d?'add':'remove']('dark');}catch(e){}})();`;
+  const js = `(function(){try{var a=localStorage.getItem('docket_appearance')||'${appearanceMode}';var d=a==='dark'||(a==='auto'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList[d?'add':'remove']('dark');}catch(e){}})();`;
   return (
     <Script
       // biome-ignore lint/security/noDangerouslySetInnerHtml: static, non-user script run before paint to prevent theme flash
