@@ -6,7 +6,7 @@
  * no hydration mismatch. Kept free of `next/headers` so the client sidebar can
  * import the same constants when it writes the cookie back.
  */
-export const SIDEBAR_COOKIE = "support_tool_sidebar";
+export const SIDEBAR_COOKIE = "docket_sidebar";
 export const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 year
 
 export function isSidebarCollapsed(value: string | undefined): boolean {

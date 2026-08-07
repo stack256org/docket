@@ -18,13 +18,16 @@ You can run Postgres locally without Docker using the embedded dev database:
 
 ```bash
 pnpm db:local                 # starts an embedded Postgres on port 5432
-pnpm db:migrate               # apply migrations
-pnpm db:seed                  # seed default statuses & categories
-pnpm create:admin you@example.com "Your Name"
+pnpm setup                    # apply migrations and seed default statuses & categories
 pnpm dev                      # runs Next.js + the background worker together
 ```
 
-Open http://localhost:3000.
+Open http://localhost:3000 — with no admin account yet, this lands you on the setup
+wizard automatically to create your login. Prefer the command line?
+
+```bash
+pnpm create:admin you@example.com "Your Name" "a-strong-password"
+```
 
 ## Project layout
 

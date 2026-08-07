@@ -175,6 +175,6 @@ a container is actually running. Edge builds report `main-<sha>` instead.
 - **Schema changes need their migration committed.** CI fails the migrations job
   otherwise, because that combination breaks the one-off `migrate` step on every fresh
   install.
-- **Do not rename the `support_tool_pgdata` or `support_tool_uploads` volumes**, or the
-  `support_tool` database, in a release. Renaming quietly orphans existing users' data. It
+- **Do not rename the `docket_pgdata` or `docket_uploads` volumes**, or the
+  `docket` database, in a release. Renaming quietly orphans existing users' data. It
   is not deleted, just invisible to the new container, which is worse than an error.

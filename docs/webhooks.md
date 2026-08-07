@@ -93,12 +93,6 @@ Every request carries:
 | `X-Docket-Timestamp` | Unix seconds the request was signed at |
 | `X-Docket-Signature` | `sha256=<hex hmac>` — HMAC-SHA256 of `"{timestamp}.{raw body}"`, keyed with your endpoint's signing secret |
 
-> **Deprecated aliases.** Every delivery also carries `X-Support-Tool-Event`,
-> `-Delivery`, `-Timestamp` and `-Signature` with identical values. These are the
-> names the product used before it was renamed to Docket, and they are sent only so
-> existing endpoints keep working. Read the `X-Docket-*` set; the old names will be
-> removed in a future release.
-
 Recompute the signature yourself and compare — never trust the payload without checking it:
 
 ```js

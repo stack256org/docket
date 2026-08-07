@@ -153,8 +153,8 @@ function WizardInner({ initialStep }: { initialStep?: "integrations" }) {
       // Persist the chosen theme locally so the dashboard renders it instantly,
       // before the server settings round-trip.
       try {
-        localStorage.setItem("support_tool_theme", currentTheme);
-        localStorage.setItem("support_tool_appearance", appearanceMode);
+        localStorage.setItem("docket_theme", currentTheme);
+        localStorage.setItem("docket_appearance", appearanceMode);
       } catch {
         // localStorage may be unavailable (private mode) — non-fatal.
       }

@@ -174,15 +174,18 @@ run takes a minute or two while the image downloads.
 Port 3000 already taken? Use `HOST_PORT=8080 docker compose up -d`. Use `HOST_PORT`, never
 `PORT`, for the reason explained under [Updating](#updating).
 
-**4. Make your own login.**
+**4. Open your app's URL** — `http://localhost:3000` by default, or
+`http://localhost:8080` (or whatever port you chose) if you set `HOST_PORT` above. With
+no admin account yet, this lands you on the setup wizard automatically — it walks you
+through creating your login and, optionally, email and storage integrations. Your
+customers' form is at `/`, and you sign in afterward at `/login`.
+
+Prefer the command line, or scripting the install? Skip the wizard's account step with:
 
 ```bash
 docker compose run --rm app \
   pnpm create:admin you@example.com "Your Name" "a-strong-password"
 ```
-
-**5. Open http://localhost:3000.** Your customers' form is at `/`, and you sign in at
-`/login`.
 
 That is the whole install. Useful next commands:
 
@@ -217,11 +220,17 @@ alone unless you are pointing at your own.
 ```bash
 pnpm db:local                 # optional: start the bundled Postgres on :5432
 pnpm setup                    # create the tables and add default stages and categories
-pnpm create:admin you@example.com "Your Name" "a-strong-password"
 pnpm dev                      # runs the app and the background worker together
 ```
 
-Open `http://localhost:3000`.
+Open your app's URL, for example `http://localhost:3000` — with no admin account yet,
+this lands you on the setup wizard automatically to create your login.
+
+Prefer the command line?
+
+```bash
+pnpm create:admin you@example.com "Your Name" "a-strong-password"
+```
 
 The password lets you sign in straight away with no email set up. Leave it off to create
 a magic-link-only account instead.
@@ -380,8 +389,10 @@ docker compose logs -f app worker     # watch what it is doing
 docker compose down                   # stop it. Your data stays.
 ```
 
-Create your first login as a separate, deliberate step, so you see whether it worked
-instead of it failing quietly inside a background service:
+Opening the app creates your first login through the `/setup` wizard, same as in
+[Quick start](#quick-start). Prefer doing it as a separate, deliberate step so you see
+whether it worked instead of it failing quietly inside a background service? Use the CLI
+instead:
 
 ```bash
 docker compose run --rm app pnpm create:admin you@example.com "Your Name" "a-strong-password"
@@ -401,8 +412,8 @@ Two things hold state, and both sit on named Docker volumes:
 
 | Volume | Mounted at | Holds |
 |--------|-----------|-------|
-| `support_tool_pgdata` | `/var/lib/postgresql/data` | Everything: requests, replies, people, sessions, API keys, settings, the audit log, and the job queue |
-| `support_tool_uploads` | `/app/uploads` | Attachments, on the default `local` storage setting only |
+| `docket_pgdata` | `/var/lib/postgresql/data` | Everything: requests, replies, people, sessions, API keys, settings, the audit log, and the job queue |
+| `docket_uploads` | `/app/uploads` | Attachments, on the default `local` storage setting only |
 
 Nothing else on disk matters. Attachments are written through
 [`lib/storage.ts`](lib/storage.ts); everything else in the container is part of the image
@@ -422,9 +433,6 @@ Two details make that reliable rather than lucky:
 - **`PGDATA` is set explicitly.** The official Postgres image changed its default data
   directory in version 18. Left to the default, a future version bump would mount the
   volume at the wrong path and the database would start up empty.
-
-The names still say `support_tool_*` from before the rename, on purpose, so existing
-installs keep their data.
 
 ### Updating
 
@@ -557,7 +565,7 @@ rather than a web server.
 
 Backups are not automatic. You need to set them up.
 
-Always back up the **Postgres database**. Also back up the **`support_tool_uploads`
+Always back up the **Postgres database**. Also back up the **`docket_uploads`
 volume** if you are using local file storage, which you do not need on S3 or R2.
 [docs/backup-and-restore.md](docs/backup-and-restore.md) has the commands, a scheduled
 example, and full recovery steps.

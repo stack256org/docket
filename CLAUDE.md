@@ -127,7 +127,7 @@ Admins can change the platform color theme and appearance mode (light/dark/auto)
 - **`lib/settings.ts`** — `getPlatformSettings()` reads the single `platform_settings` row (id `"default"`).
 - **`app/api/admin/settings/route.ts`** — `GET` (any agent/admin) + `PATCH` (admin only) for theme + appearanceMode.
 - **6 presets:** `default`, `ocean`, `forest`, `sunset`, `indigo`, `slate` — each defines both light and dark variant CSS vars.
-- **localStorage keys:** `support_tool_theme`, `support_tool_appearance` — cached for instant re-hydration without a DB round-trip.
+- **localStorage keys:** `docket_theme`, `docket_appearance` — cached for instant re-hydration without a DB round-trip.
 - **Pattern for new themes:** add a new preset object to `LIGHT_THEME_VARS` and `DARK_THEME_VARS` in `theme-provider.tsx`, then add it to the swatch list in `appearance-settings-form.tsx`.
 
 ### UI Components
@@ -175,13 +175,13 @@ Ticket **descriptions** (submit form) and **replies** (both customer and agent) 
 - **`storage.url(key)` always returns `/api/files/{key}`, regardless of
   driver** — never a direct/signed cloud URL. Deliberate: keeps it
   synchronous (callers build it inline in `.map()`, not awaited per
-  attachment) and keeps ticket-attachment access control in Support
-  Tool's own route. `/api/files/[...key]` calls `storage.download()`,
+  attachment) and keeps ticket-attachment access control in Docket's
+  own route. `/api/files/[...key]` calls `storage.download()`,
   which works identically for every driver.
 - **`local` driver in Docker:** `./uploads` MUST be a persistent volume or
   every redeploy wipes all files (container filesystem resets from the
   image each time). The compose files pin it to a literal volume name
-  (`support_tool_uploads`), not Compose's default project-derived name —
+  (`docket_uploads`), not Compose's default project-derived name —
   some deploy tools (observed with Dokploy) don't keep the compose project
   name stable across redeploys, which silently creates a new empty volume
   and orphans the old one. Cloud drivers (`s3`/`r2`) don't need a volume

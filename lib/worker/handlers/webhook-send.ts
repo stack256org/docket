@@ -149,14 +149,6 @@ async function sendSignedWebhook(
         "X-Docket-Delivery": delivery.id,
         "X-Docket-Timestamp": String(timestamp),
         "X-Docket-Signature": `sha256=${signature}`,
-        // DEPRECATED, kept only so endpoints written against the old product
-        // name keep working. Identical values to the X-Docket-* headers above.
-        // Consumers should read the X-Docket-* set; these will be removed in a
-        // future release. See docs/webhooks.md.
-        "X-Support-Tool-Event": delivery.event,
-        "X-Support-Tool-Delivery": delivery.id,
-        "X-Support-Tool-Timestamp": String(timestamp),
-        "X-Support-Tool-Signature": `sha256=${signature}`,
       },
       body,
       signal: controller.signal,

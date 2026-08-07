@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { isProtectedPagePath } from "@/lib/protected-routes";
 
-const RETRIED_KEY = "support_tool_not_found_retried";
+const RETRIED_KEY = "docket_not_found_retried";
 // Enough to cover a browsing session's worth of dead links without growing
 // unbounded; oldest entries fall off the front.
 const RETRIED_LIMIT = 20;
