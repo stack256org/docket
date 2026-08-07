@@ -9,12 +9,37 @@ Anything needing manual work on upgrade is called out under **Upgrade notes**.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-07
+
+### Added
+
+- SMTP, Google OAuth, Pusher (Beams + Channels) and file storage (S3/R2) can
+  now be configured at runtime from **Admin → Integrations**, not just
+  `.env`. A value saved there overrides the matching env var; an install that
+  only ever used `.env` sees no change in behavior.
+
 ### Changed
 
 - Finished the rename to Docket: the Postgres database and Docker volumes
   (`support_tool` → `docket`, `support_tool_pgdata` → `docket_pgdata`,
   `support_tool_uploads` → `docket_uploads`) and the `X-Support-Tool-*`
   webhook header aliases are gone. `X-Docket-*` headers are unaffected.
+- New brand mark: favicons, PWA icons and the in-app logo are regenerated
+  from the new navy-and-off-white logo.
+
+### Fixed
+
+- The `ghcr.io/stack256org/docket` package was private, so every
+  `docker pull` in the README failed with 403 for anyone not signed in to
+  GHCR. The release workflow now verifies anonymous pullability and fails
+  the run if a customer couldn't actually pull what was just published. The
+  README's version/tag references are also now generated from
+  `package.json` instead of hand-written, so they can't drift again.
+
+#### Upgrade notes
+
+- No manual steps. Existing `.env`-based SMTP/OAuth/Pusher/storage
+  configuration keeps working unchanged; Integrations settings are optional.
 
 ## [0.1.0] - 2026-07-31
 
@@ -79,5 +104,6 @@ Replying by email, satisfaction ratings after a request is closed, a spreadsheet
 of the request list itself, one-click deploy buttons, and attachments and webhooks in the
 public API. See the Roadmap in the README.
 
-[Unreleased]: https://github.com/stack256org/docket/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/stack256org/docket/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/stack256org/docket/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/stack256org/docket/releases/tag/v0.1.0
