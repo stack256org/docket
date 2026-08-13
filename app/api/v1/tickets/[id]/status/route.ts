@@ -17,14 +17,10 @@ import {
 import { notifyTicketStatusChange } from "@/lib/tickets/notify-status-change";
 import { resolveTicketPortalUrl } from "@/lib/tickets/portal-url";
 
-// PATCH /api/v1/tickets/:id/status — public API, authenticated with an API
-// key. Lets the ticket owner close or reopen their ticket. Bound to the
-// owner's email the same way the reply endpoint is: `email` must match the
-// ticket's customerEmail. `action` is "close" or "reopen".
-//
-// Mirrors the customer branch of the portal's own close/reopen routes
-// (app/api/tickets/[id]/close and .../reopen) — same awaiting-reply
-// bookkeeping and close email — but authenticated by API key + email.
+// PATCH /api/v1/tickets/:id/status — lets the ticket owner close or reopen
+// (`action`), bound to their email exactly as the reply endpoint is. Mirrors the
+// customer branch of the portal's close/reopen routes, same awaiting-reply
+// bookkeeping and close email, but authenticated by API key + email.
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

@@ -6,13 +6,9 @@ import { db } from "@/lib/db";
 
 export type Customer = typeof customers.$inferSelect;
 
-/**
- * Looks up a customer by (normalized) email, creating one if this is their
- * first-ever ticket. Uses INSERT ... ON CONFLICT DO NOTHING rather than a
- * plain select-then-insert so two concurrent submissions from the same new
- * email (portal + public API can both be hit at once) can't race into a
- * unique-constraint crash.
- */
+/** Looks up a customer by normalized email, creating one on their first ticket.
+ * Uses INSERT ... ON CONFLICT DO NOTHING rather than select-then-insert, so two
+ * concurrent submissions from one new email can't race into a constraint crash. */
 export async function findOrCreateCustomer(
   name: string,
   email: string

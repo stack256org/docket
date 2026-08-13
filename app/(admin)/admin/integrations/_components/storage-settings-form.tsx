@@ -141,7 +141,7 @@ export function StorageSettingsForm({
           <div className="space-y-1.5">
             <Label htmlFor="s3-access-key">
               Access Key ID{" "}
-              <span className="text-muted-foreground font-normal">
+              <span className="text-base-content-muted font-normal">
                 (optional — falls back to IAM role)
               </span>
             </Label>
@@ -165,7 +165,7 @@ export function StorageSettingsForm({
           <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="s3-public-base-url">
               Public base URL{" "}
-              <span className="text-muted-foreground font-normal">
+              <span className="text-base-content-muted font-normal">
                 (optional — CDN/custom domain)
               </span>
             </Label>
@@ -221,7 +221,7 @@ export function StorageSettingsForm({
           <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="r2-public-base-url">
               Public base URL{" "}
-              <span className="text-muted-foreground font-normal">
+              <span className="text-base-content-muted font-normal">
                 (optional — CDN/custom domain)
               </span>
             </Label>

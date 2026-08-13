@@ -14,16 +14,17 @@ export default async function AppearancePage() {
 
   return (
     <div className="p-8 max-w-3xl mx-auto space-y-6">
-      <div className="bg-card rounded-xl border border-border shadow-soft p-6">
+      <div className="bg-base-100 rounded-xl border border-base-300 shadow-soft p-6">
         <BrandingSettingsForm
           initialBrandName={settings.brandName}
+          initialFaviconUrl={resolveLogoUrl(settings.faviconKey)}
           initialLogoUrl={resolveLogoUrl(settings.logoKey)}
         />
       </div>
-      <div className="bg-card rounded-xl border border-border shadow-soft p-6">
+      <div className="bg-base-100 rounded-xl border border-base-300 shadow-soft p-6">
         <AppearanceSettingsForm />
       </div>
-      <div className="bg-card rounded-xl border border-border shadow-soft p-6">
+      <div className="bg-base-100 rounded-xl border border-base-300 shadow-soft p-6">
         <LoginMethodsSettingsForm
           googleConfigured={googleConfigured}
           initialSettings={{

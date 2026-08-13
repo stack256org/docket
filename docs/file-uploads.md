@@ -190,7 +190,7 @@ When a ticket is deleted (admin spam deletion):
 
 ## UI Notes
 
-- The file input uses shadcn `Button` styled as a file picker — not a native `<input type="file">` left unstyled.
+- The file input uses `Button` from `components/ui/button.tsx` styled as a file picker — not a native `<input type="file">` left unstyled.
 - Show a file list below the picker with: filename, file size (human-readable), a remove button.
 - Show a progress indicator during upload.
 - Show clear error messages for each failure type:

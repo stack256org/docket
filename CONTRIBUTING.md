@@ -37,7 +37,7 @@ app/            Next.js App Router
   (agent)/      agent portal (ticket queue, detail, dashboard)
   (admin)/      admin portal (users, appearance, ticket config)
   api/          REST API route handlers
-components/     UI (shadcn/ui primitives in components/ui)
+components/     UI (daisyUI + Headless UI primitives in components/ui)
 db/             Drizzle schema + migrations
 lib/            db client, auth, email, storage, worker
 scripts/        setup, seed, admin, worker entrypoints
@@ -52,7 +52,7 @@ docs/           product specs — read the relevant doc before changing a featur
   security-sensitive pure functions only: signed customer tokens, API key hashing,
   webhook signatures and secret encryption, client IP extraction, and rich-text
   flattening. Adding a test there should never require a database.
-- **UI:** use shadcn/ui components; cards/dialogs use `rounded-xl`, buttons/inputs `rounded-md`.
+- **UI:** use the `components/ui/*` primitives; cards/dialogs use `rounded-xl`, buttons/inputs `rounded-md`.
 - **Colors are theme tokens** (`bark`, `sand`, `stone`, `cream`, `bg-public`) — don't hardcode hex so the admin theme + dark mode keep working.
 - **Statuses & categories are dynamic** — never hardcode status slugs like `"closed"`;
   use the `isClosedState` / `isDefault` flags (see `lib/ticket-config.ts`).

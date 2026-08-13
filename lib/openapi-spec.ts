@@ -1,15 +1,7 @@
-// OpenAPI 3.1 specification for the public API (app/api/v1/*).
-//
-// This is the canonical machine-readable contract. It is rendered by the
-// Scalar reference at /admin/api-keys/docs, downloadable from
-// GET /api/admin/api-keys/openapi (importable into Postman and most other
-// tooling), and it must be kept in sync with docs/api.md, the hand-authored
-// Postman collection (app/api/admin/api-keys/postman/route.ts), and the
-// route implementations when the API changes.
-//
-// Hand-authored on purpose: the surface is eight operations, so a generator
-// pipeline (zod-to-openapi etc.) would be more machinery than value. Revisit
-// if the v1 surface grows further.
+// OpenAPI 3.1 contract for the public API — rendered by Scalar at
+// /admin/api-keys/docs. Keep in sync with docs/api.md, the Postman collection
+// route, and the implementations. Hand-authored on purpose: at this size a
+// generator pipeline would be more machinery than value.
 
 const ERROR_SCHEMA = {
   type: "object",
@@ -55,10 +47,8 @@ const TICKET_SUMMARY_SCHEMA = {
   },
 } as const;
 
-/**
- * Build the OpenAPI document with this instance's own base URL as the
- * default server — same pattern as the Postman collection route.
- */
+/** Build the OpenAPI document with this instance's own base URL as the default
+ * server — same pattern as the Postman collection route. */
 export function buildOpenApiSpec(baseUrl: string): Record<string, unknown> {
   return {
     openapi: "3.1.0",

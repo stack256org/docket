@@ -38,10 +38,9 @@ import {
   ticketPayloadData,
 } from "@/lib/webhooks/dispatch";
 
-// GET /api/v1/tickets/:id/comments — public API, authenticated with an API
-// key. Read-only conversation thread: public replies only, internal notes
-// are never returned (same rule the customer portal itself enforces). Each
-// comment carries its own attachments (files uploaded with that reply).
+// GET /api/v1/tickets/:id/comments — public API, API-key authenticated.
+// Read-only thread of public replies; internal notes are never returned, the
+// same rule the customer portal enforces. Each comment carries its attachments.
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -129,17 +128,10 @@ export async function GET(
   });
 }
 
-// POST /api/v1/tickets/:id/comments — public API, authenticated with an API
-// key. Posts a CUSTOMER reply on behalf of the ticket owner. The API key is
-// trusted, but the reply is still bound to a specific customer: `email` must
-// match the ticket's own customerEmail, so an integrating backend can only
-// reply as the account that actually owns the ticket (that backend enforces
-// which logged-in user maps to which email).
-//
-// Mirrors the customer branch of the portal's own reply route
-// (app/api/tickets/[id]/comments POST): same awaiting-reply bookkeeping, agent
-// notifications, and closed-ticket guard — but authenticated by API key +
-// email instead of the per-ticket customerToken.
+// POST /api/v1/tickets/:id/comments — posts a CUSTOMER reply. The key is
+// trusted but the reply stays bound to one customer: `email` must match the
+// ticket's customerEmail. Mirrors the customer branch of the portal's reply
+// route, but keyed on API key + email rather than the per-ticket customerToken.
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

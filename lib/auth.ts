@@ -14,22 +14,10 @@ import { env } from "@/lib/env";
 import { getGoogleOAuthSettings } from "@/lib/integration-settings";
 import { getEmailBranding, getPlatformSettings } from "@/lib/settings";
 
-// Top-level await: resolved once, the first time this module is imported in
-// a given server process, then baked into the betterAuth() singleton below
-// for the process's lifetime. Google OAuth credentials changed later via
-// /admin/integrations therefore only take effect after an app restart — see
-// docs/authentication.md. Every other integration in this app (SMTP, Pusher,
-// storage) reads its settings per-call instead and applies changes live;
-// Google is the one exception because Better Auth builds `socialProviders`
-// once, synchronously, right here.
-//
-// Never let this throw: `next build`'s page-data-collection phase imports
-// this module (via proxy.ts and route handlers) against the Dockerfile's
-// placeholder DATABASE_URL, which has no real Postgres to query — and at
-// real runtime, a DB hiccup on the very first request that imports this
-// module shouldn't take the whole server down. Either way, falling back to
-// "Google not configured" is the same failure mode as the env vars simply
-// being unset, and self-heals on the next restart.
+// Resolved once per process into the betterAuth() singleton, since Better Auth
+// builds `socialProviders` synchronously — so Google credentials changed via
+// /admin/integrations need a restart. Must never throw: `next build` imports
+// this against a placeholder DATABASE_URL.
 let googleOAuth: Awaited<ReturnType<typeof getGoogleOAuthSettings>> = null;
 try {
   googleOAuth = await getGoogleOAuthSettings();
@@ -120,14 +108,10 @@ export const auth = betterAuth({
         });
       },
     }),
-    // Must be last: patches auth.api.* calls made directly from Server
-    // Actions/Route Handlers (e.g. app/actions/auth.ts's logoutAction) to
-    // actually forward Set-Cookie headers via next/headers' cookies() —
-    // without it, those calls compute the right cookie changes internally
-    // but never apply them to the response, so the browser keeps stale,
-    // still-valid session cookies (session_token AND the cookieCache
-    // session_data blob below) after "signing out" until they expire on
-    // their own.
+    // Must be last: patches auth.api.* calls from Server Actions and Route
+    // Handlers to actually forward Set-Cookie via next/headers. Without it they
+    // compute the right cookie changes but never apply them, so the browser
+    // keeps still-valid session cookies after "signing out" until they expire.
     nextCookies(),
   ],
   session: {

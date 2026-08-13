@@ -20,11 +20,9 @@ export default async function SetupPage() {
     redirect("/login");
   }
 
-  // The admin account is created a step before the wizard finishes (during
-  // the Account step). If it already exists here, the wizard's later,
-  // client-only step state was lost — most likely a page reload while
-  // sitting on the Integrations step. Resume there instead of restarting
-  // account creation.
+  // The admin account is created a step before the wizard finishes, so if one
+  // already exists here the later client-only step state was lost — usually a
+  // reload on the Integrations step. Resume there, don't recreate the account.
   if (await hasAdminUser()) {
     const session = await getVerifiedSession();
     if (!session) {

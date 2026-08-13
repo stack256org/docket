@@ -17,8 +17,10 @@ export default async function IntegrationsPage() {
   return (
     <div className="p-8 max-w-3xl mx-auto space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-foreground">Integrations</h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <h1 className="text-xl font-semibold text-base-content">
+          Integrations
+        </h1>
+        <p className="text-sm text-base-content-muted mt-1">
           Optional — the app works without any of these. Configure what you need
           here instead of editing .env; everything below applies live except
           Google Sign-in, which needs a restart.

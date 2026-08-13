@@ -125,7 +125,7 @@ function TicketNavLink({
     return (
       <button
         aria-label={label}
-        className={`${className} cursor-not-allowed border-border/50 text-muted-foreground/40`}
+        className={`${className} cursor-not-allowed border-base-300/50 text-base-content-muted/40`}
         disabled
         title={label}
         type="button"
@@ -138,7 +138,7 @@ function TicketNavLink({
   return (
     <Link
       aria-label={label}
-      className={`${className} border-border text-foreground hover:bg-accent`}
+      className={`${className} border-base-300 text-base-content hover:bg-base-300`}
       href={`/tickets/${ticketId}${listQuery}`}
       title={label}
     >
@@ -270,20 +270,20 @@ export default async function AgentTicketDetailPage({
       {/* Breadcrumb — stays pinned to the top of the scroll area, carrying the
           ticket's subject + status along so context stays visible while
           scrolled away from the ticket header card below. */}
-      <div className="sticky top-0 z-10 flex h-12 shrink-0 items-center gap-2 border-b border-border bg-surface px-4 lg:px-8">
+      <div className="sticky top-0 z-10 flex h-12 shrink-0 items-center gap-2 border-b border-base-300 bg-surface px-4 lg:px-8">
         <Link
-          className="flex shrink-0 items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className="flex shrink-0 items-center gap-1.5 text-sm text-base-content-muted hover:text-base-content transition-colors"
           href={`/tickets${listQuery}`}
         >
           <ArrowLeftIcon className="size-3.5" />
           All Tickets
         </Link>
-        <span className="shrink-0 text-muted-foreground text-sm">/</span>
-        <span className="shrink-0 text-sm text-foreground font-medium">
+        <span className="shrink-0 text-base-content-muted text-sm">/</span>
+        <span className="shrink-0 text-sm text-base-content font-medium">
           #{ticket.ticketNumber}
         </span>
-        <span className="shrink-0 text-muted-foreground text-sm">·</span>
-        <span className="min-w-0 truncate text-sm text-foreground">
+        <span className="shrink-0 text-base-content-muted text-sm">·</span>
+        <span className="min-w-0 truncate text-sm text-base-content">
           {ticket.subject}
         </span>
         <div className="ml-auto flex shrink-0 items-center gap-3">
@@ -321,23 +321,23 @@ export default async function AgentTicketDetailPage({
               sits at the column edge, flush to the sidebar divider. */}
           <div className="space-y-4 overflow-x-hidden px-4 py-5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:px-8 lg:py-6">
             {/* Ticket header */}
-            <div className="bg-card rounded-xl border border-border shadow-soft p-5">
+            <div className="bg-base-100 rounded-xl border border-base-300 shadow-soft p-5">
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <span className="text-xs text-muted-foreground font-mono">
+                    <span className="text-xs text-base-content-muted font-mono">
                       #{ticket.ticketNumber}
                     </span>
-                    <span className="text-muted-foreground text-xs">·</span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-base-content-muted text-xs">·</span>
+                    <span className="text-xs text-base-content-muted">
                       {categoryMap[ticket.category]?.label ?? ticket.category}
                     </span>
-                    <span className="text-muted-foreground text-xs">·</span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-base-content-muted text-xs">·</span>
+                    <span className="text-xs text-base-content-muted">
                       <LocalDateTime date={ticket.createdAt} />
                     </span>
                   </div>
-                  <h1 className="text-lg font-semibold text-foreground wrap-break-word">
+                  <h1 className="text-lg font-semibold text-base-content wrap-break-word">
                     {ticket.subject}
                   </h1>
                 </div>
@@ -358,21 +358,21 @@ export default async function AgentTicketDetailPage({
                 customerName={ticket.customerName}
               >
                 <button
-                  className="size-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-medium shrink-0"
+                  className="size-7 rounded-full bg-primary text-primary-content flex items-center justify-center text-xs font-medium shrink-0"
                   type="button"
                 >
                   {getInitials(ticket.customerName)}
                 </button>
               </CustomerProfilePopover>
-              <div className="min-w-0 max-w-[85%] wrap-break-word bg-accent rounded-xl border border-border p-4">
+              <div className="min-w-0 max-w-[85%] wrap-break-word bg-base-300 rounded-xl border border-base-300 p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-sm font-medium text-foreground">
+                  <span className="text-sm font-medium text-base-content">
                     {ticket.customerName}
                   </span>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-base-content-muted">
                     Customer
                   </span>
-                  <span className="text-xs text-muted-foreground ml-auto shrink-0">
+                  <span className="text-xs text-base-content-muted ml-auto shrink-0">
                     <LocalDateTime date={ticket.createdAt} />
                   </span>
                 </div>
@@ -384,7 +384,7 @@ export default async function AgentTicketDetailPage({
                     className={
                       isRichTextEmpty(ticket.description)
                         ? ""
-                        : "mt-4 pt-4 border-t border-border"
+                        : "mt-4 pt-4 border-t border-base-300"
                     }
                   >
                     <DeletableTicketAttachments
@@ -409,7 +409,7 @@ export default async function AgentTicketDetailPage({
                 attachmentsByComment.get(comment.id) ?? [];
               const avatarClassName = `size-7 rounded-full flex items-center justify-center text-xs font-medium shrink-0 ${
                 isCustomer
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-primary text-primary-content"
                   : "bg-stone text-white"
               }`;
               const avatar = isCustomer ? (
@@ -439,12 +439,12 @@ export default async function AgentTicketDetailPage({
                       comment.isInternal
                         ? "bg-amber-50 border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/70"
                         : isCustomer
-                          ? "bg-accent border-border"
-                          : "bg-card border-border"
+                          ? "bg-base-300 border-base-300"
+                          : "bg-base-100 border-base-300"
                     }`}
                   >
                     <div className="flex items-center gap-2 mb-2 flex-wrap">
-                      <span className="text-sm font-medium text-foreground">
+                      <span className="text-sm font-medium text-base-content">
                         {comment.authorName}
                       </span>
                       {comment.isInternal && (
@@ -453,7 +453,7 @@ export default async function AgentTicketDetailPage({
                           Internal note
                         </span>
                       )}
-                      <span className="text-xs text-muted-foreground ml-auto shrink-0">
+                      <span className="text-xs text-base-content-muted ml-auto shrink-0">
                         <LocalDateTime date={comment.createdAt} />
                       </span>
                     </div>
@@ -466,7 +466,7 @@ export default async function AgentTicketDetailPage({
                         className={
                           isRichTextEmpty(comment.content)
                             ? ""
-                            : "mt-3 pt-3 border-t border-border"
+                            : "mt-3 pt-3 border-t border-base-300"
                         }
                       >
                         <DeletableTicketAttachments
@@ -506,7 +506,7 @@ export default async function AgentTicketDetailPage({
         </div>
 
         {/* ── Right sidebar ── */}
-        <div className="w-full shrink-0 px-4 pb-5 lg:w-72 lg:sticky lg:top-12 lg:min-h-0 lg:overflow-y-auto lg:border-l lg:border-border lg:px-6 lg:py-6">
+        <div className="w-full shrink-0 px-4 pb-5 lg:w-72 lg:sticky lg:top-12 lg:min-h-0 lg:overflow-y-auto lg:border-l lg:border-base-300 lg:px-6 lg:py-6">
           <TicketInfoSidebar
             activity={activity}
             agents={agents}

@@ -1,14 +1,9 @@
-import { integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
-// Admin-configurable alternative to the optional env vars in lib/env.ts
-// (SMTP, Google OAuth, Pusher Beams/Channels, S3/R2 storage) — set from the
-// setup wizard or /admin/integrations instead of editing .env. Single row
-// (id "default"), same pattern as platformSettings in db/schema/settings.ts.
-// Every field here is a fallback source: lib/integration-settings.ts prefers
-// a non-null DB value and falls back to the matching env var, so existing
-// .env-only deployments are unaffected. `*Encrypted` columns are AES-256-GCM
-// ciphertext (lib/crypto.ts, key derived from APP_SECRET) — never sent to
-// the browser in plaintext (see app/api/admin/integration-settings/route.ts).
+// Admin-configurable alternative to lib/env.ts's optional vars, set from the
+// setup wizard or /admin/integrations. Single row, id "default". A non-null DB
+// value wins over the matching env var, so .env-only installs are unaffected.
+// `*Encrypted` columns are AES-256-GCM, never sent to the browser in plaintext.
 export const integrationSettings = pgTable("integration_settings", {
   id: text("id").primaryKey().default("default"),
 
@@ -18,15 +13,32 @@ export const integrationSettings = pgTable("integration_settings", {
   smtpUser: text("smtp_user"),
   smtpPassEncrypted: text("smtp_pass_encrypted"),
   emailFrom: text("email_from"),
+  // Result of the last credential check — run automatically whenever a PATCH
+  // leaves the section fully filled in, and on demand from the "Test
+  // connection" button (which does not itself persist). Null = never tested.
+  // See lib/integration-test.ts.
+  smtpLastTestedAt: timestamp("smtp_last_tested_at", { withTimezone: true }),
+  smtpLastTestOk: boolean("smtp_last_test_ok"),
+  smtpLastTestError: text("smtp_last_test_error"),
 
   // Google OAuth — read once at process boot (lib/auth.ts); changes need a
   // restart, see docs/authentication.md.
   googleClientId: text("google_client_id"),
   googleClientSecretEncrypted: text("google_client_secret_encrypted"),
+  googleLastTestedAt: timestamp("google_last_tested_at", {
+    withTimezone: true,
+  }),
+  googleLastTestOk: boolean("google_last_test_ok"),
+  googleLastTestError: text("google_last_test_error"),
 
   // Pusher Beams (browser/OS push)
   pusherBeamsInstanceId: text("pusher_beams_instance_id"),
   pusherBeamsSecretKeyEncrypted: text("pusher_beams_secret_key_encrypted"),
+  pusherBeamsLastTestedAt: timestamp("pusher_beams_last_tested_at", {
+    withTimezone: true,
+  }),
+  pusherBeamsLastTestOk: boolean("pusher_beams_last_test_ok"),
+  pusherBeamsLastTestError: text("pusher_beams_last_test_error"),
 
   // Pusher Channels (real-time ticket updates) — key/cluster are public
   // identifiers (served to the browser via /api/config/client), appId/secret
@@ -35,6 +47,11 @@ export const integrationSettings = pgTable("integration_settings", {
   pusherKey: text("pusher_key"),
   pusherSecretEncrypted: text("pusher_secret_encrypted"),
   pusherCluster: text("pusher_cluster"),
+  pusherChannelsLastTestedAt: timestamp("pusher_channels_last_tested_at", {
+    withTimezone: true,
+  }),
+  pusherChannelsLastTestOk: boolean("pusher_channels_last_test_ok"),
+  pusherChannelsLastTestError: text("pusher_channels_last_test_error"),
 
   // File storage — driver switch + credentials for the non-default drivers.
   storageDriver: text("storage_driver"), // "local" | "s3" | "r2"

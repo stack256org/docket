@@ -68,11 +68,9 @@ export function parseTicketListSort(params: TicketListSearchParams): {
   };
 }
 
-/** Same WHERE-clause semantics used by the tickets list page — kept in one
- * place so the ticket detail page's prev/next lookup filters identically.
- * The customer name/email search conditions reference the `customers`
- * table, so every caller's query must `.innerJoin(customers, eq(tickets.customerId, customers.id))`
- * before applying this where clause. */
+/** The tickets list page's WHERE semantics, in one place so the detail page's
+ * prev/next lookup filters identically. Search touches `customers`, so callers
+ * must innerJoin it on tickets.customerId before applying this clause. */
 export function buildTicketsWhereClause(
   params: TicketListSearchParams,
   agentId: string

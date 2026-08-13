@@ -44,7 +44,7 @@ export function SidebarCard({
   return (
     <Collapsible
       className={cn(
-        "bg-card rounded-xl border border-border shadow-soft overflow-hidden",
+        "bg-base-100 rounded-xl border border-base-300 shadow-soft overflow-hidden",
         className
       )}
       onOpenChange={setOpen}
@@ -53,7 +53,7 @@ export function SidebarCard({
       <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 p-4 text-left cursor-pointer">
         <h3
           className={cn(
-            "text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5",
+            "text-xs font-semibold text-base-content-muted uppercase tracking-wide flex items-center gap-1.5",
             titleClassName
           )}
         >
@@ -62,7 +62,7 @@ export function SidebarCard({
         </h3>
         <CaretDownIcon
           className={cn(
-            "size-3.5 text-muted-foreground shrink-0 transition-transform",
+            "size-3.5 text-base-content-muted shrink-0 transition-transform",
             open && "rotate-180"
           )}
         />

@@ -1,10 +1,9 @@
 import { createId } from "@paralleldrive/cuid2";
 import { storage } from "@/lib/storage";
 
-// Attachment rules for the public API (app/api/v1/*). Kept identical to the
-// customer portal's own limits (app/api/tickets/route.ts and
-// app/api/tickets/[id]/comments/route.ts) so a ticket created or replied to
-// through the API can never hold a file the portal would have rejected.
+// Attachment rules for the public API, kept identical to the customer portal's
+// own limits so a ticket created or replied to through the API can never hold a
+// file the portal would have rejected.
 export const API_ALLOWED_MIME_TYPES = new Set([
   "image/jpeg",
   "image/png",
@@ -34,12 +33,9 @@ export type DecodeResult =
   | { ok: true; attachments: DecodedAttachment[] }
   | { ok: false; error: string };
 
-/**
- * Validate + decode a base64 attachment array from a JSON request body.
- * `remainingSlots` is how many more files this ticket may still hold (5 minus
- * what it already has), so the API enforces the same per-ticket cap the portal
- * does. Pure — no I/O — so callers can validate before touching storage.
- */
+/** Validate and decode a base64 attachment array from a JSON body.
+ * `remainingSlots` is how many more files the ticket may hold, enforcing the
+ * portal's per-ticket cap. Pure, so callers can validate before touching storage. */
 export function decodeBase64Attachments(
   raw: unknown,
   remainingSlots: number
@@ -111,12 +107,9 @@ export interface UploadedAttachment {
   storageKey: string;
 }
 
-/**
- * Upload decoded attachments to storage under this ticket's prefix. Returns the
- * DB-ready rows (matching the portal's `tickets/{id}/{cuid}.{ext}` key layout).
- * On any failure it rolls back everything already uploaded, then rethrows —
- * the caller does its DB writes after this resolves.
- */
+/** Uploads decoded attachments under this ticket's prefix and returns DB-ready
+ * rows in the portal's `tickets/{id}/{cuid}.{ext}` layout. Any failure rolls back
+ * what was already uploaded and rethrows; callers write to the DB afterwards. */
 export async function uploadDecodedAttachments(
   ticketId: string,
   attachments: DecodedAttachment[]

@@ -169,7 +169,7 @@ Events visible to customers (on the customer portal):
 - Top bar shows: agent name + avatar + sign-out.
 - Ticket list uses a table layout on desktop, card layout on mobile.
 - Status badges and category badges use consistent colors (see [design-system.md](./design-system.md)).
-- All interactive elements use shadcn/ui.
+- All interactive elements use the `components/ui/*` primitives.
 
 ---
 

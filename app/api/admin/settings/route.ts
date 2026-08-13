@@ -15,10 +15,12 @@ const VALID_THEMES = new Set([
   "slate",
 ]);
 const VALID_APPEARANCES = new Set(["light", "dark", "auto"]);
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 
 interface SettingsBody {
   appearanceMode?: string;
   brandName?: string | null;
+  emailAccentColor?: string | null;
   googleLoginEnabled?: boolean;
   magicLinkEnabled?: boolean;
   passwordLoginEnabled?: boolean;
@@ -44,6 +46,7 @@ export async function GET(_request: NextRequest) {
       row?.ticketEmailNotificationsEnabled ?? true,
     brandName: row?.brandName ?? null,
     logoKey: row?.logoKey ?? null,
+    emailAccentColor: row?.emailAccentColor ?? null,
   });
 }
 
@@ -87,6 +90,10 @@ export async function PATCH(request: NextRequest) {
     body.brandName === undefined
       ? (existing?.brandName ?? null)
       : (body.brandName?.trim() ?? "") || null;
+  const emailAccentColor =
+    body.emailAccentColor === undefined
+      ? (existing?.emailAccentColor ?? null)
+      : (body.emailAccentColor?.trim() ?? "") || null;
 
   if (body.theme !== undefined && !VALID_THEMES.has(theme)) {
     return NextResponse.json({ error: "Invalid theme." }, { status: 400 });
@@ -112,6 +119,12 @@ export async function PATCH(request: NextRequest) {
       { status: 400 }
     );
   }
+  if (emailAccentColor !== null && !HEX_COLOR_RE.test(emailAccentColor)) {
+    return NextResponse.json(
+      { error: "Email accent color must be a hex color like #384959." },
+      { status: 400 }
+    );
+  }
 
   const now = new Date();
 
@@ -126,6 +139,7 @@ export async function PATCH(request: NextRequest) {
       googleLoginEnabled,
       ticketEmailNotificationsEnabled,
       brandName,
+      emailAccentColor,
       updatedAt: now,
     })
     .onConflictDoUpdate({
@@ -138,6 +152,7 @@ export async function PATCH(request: NextRequest) {
         googleLoginEnabled,
         ticketEmailNotificationsEnabled,
         brandName,
+        emailAccentColor,
         updatedAt: now,
       },
     });
@@ -157,6 +172,7 @@ export async function PATCH(request: NextRequest) {
       googleLoginEnabled,
       ticketEmailNotificationsEnabled,
       brandName,
+      emailAccentColor,
     },
   });
 
@@ -168,5 +184,6 @@ export async function PATCH(request: NextRequest) {
     googleLoginEnabled,
     ticketEmailNotificationsEnabled,
     brandName,
+    emailAccentColor,
   });
 }

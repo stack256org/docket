@@ -6,6 +6,7 @@ import { AgentSidebar } from "@/components/agent/sidebar";
 import { TopBar } from "@/components/agent/topbar";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { ThemeScript } from "@/components/theme/theme-script";
+import { UnsavedThemeChangesGuard } from "@/components/theme/unsaved-theme-changes-guard";
 import { requireAdmin } from "@/lib/authz";
 import {
   getPlatformSettings,
@@ -41,6 +42,7 @@ export default async function AdminLayout({
       >
         <PushInit userId={session.id} />
         <SessionGuard />
+        <UnsavedThemeChangesGuard />
         <div className="fixed inset-0 flex overflow-hidden">
           <AgentSidebar
             brandName={resolveBrandName(settings.brandName)}

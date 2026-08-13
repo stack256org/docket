@@ -9,13 +9,10 @@ import {
   getTicketStatuses,
 } from "@/lib/ticket-config";
 
-// GET /api/v1/config — public API, authenticated with an API key. The
-// current valid category/priority/status slugs, so integrators can build a
-// ticket form (or interpret a status value) without asking an admin what's
-// configured — and without hardcoding slugs that break silently if an
-// admin renames or reorders them later. Arrays are pre-sorted in display
-// order (same order agents see in the app). `tags` is the shared tag pool
-// (alphabetical, not display-ordered — tags have no admin-defined order).
+// GET /api/v1/config — the valid category/priority/status slugs, so integrators
+// can build a ticket form without hardcoding slugs that break silently when an
+// admin renames them. Arrays come pre-sorted in the display order agents see;
+// `tags` is the shared pool, alphabetical, since tags have no defined order.
 export async function GET(request: NextRequest) {
   try {
     await requireApiKey(request);

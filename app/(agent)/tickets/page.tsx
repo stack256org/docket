@@ -7,6 +7,7 @@ import { and, asc, count, desc, eq, inArray, or } from "drizzle-orm";
 import Link from "next/link";
 import { Suspense } from "react";
 import { TicketsListRealtime } from "@/components/agent/tickets-list-realtime";
+import { GoToPage, PageSizeSelect } from "@/components/common/list-pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ADMIN_ROLE, AGENT_ROLE } from "@/config/platform";
 import { user } from "@/db/schema/auth";
@@ -14,6 +15,7 @@ import { customers } from "@/db/schema/customers";
 import { ticketActivity, tickets } from "@/db/schema/tickets";
 import { requireAgent } from "@/lib/authz";
 import { db } from "@/lib/db";
+import { getPageNumbers } from "@/lib/pagination";
 import { computeSlaSnapshot } from "@/lib/sla";
 import {
   getSlaPolicies,
@@ -39,60 +41,17 @@ import type { ColumnPref } from "@/lib/tickets-table-columns";
 import { getTicketTableColumnPrefs } from "@/lib/user-preferences";
 import { cn, skeletonKeys } from "@/lib/utils";
 import { ColumnSettingsDialog } from "./_components/column-settings-dialog";
-import { GoToPage } from "./_components/go-to-page";
-import { PAGE_SIZE_OPTIONS } from "./_components/page-size-options";
-import { PageSizeSelect } from "./_components/page-size-select";
 import { TicketFilters } from "./_components/ticket-filters";
 import { TicketsTable } from "./_components/tickets-table";
 
 export const metadata = { title: "All Tickets" };
 
 const DEFAULT_PAGE_SIZE = 25;
+// 2 is included alongside the "real" sizes so pagination can be exercised
+// with a handful of seeded tickets during local development.
+const PAGE_SIZE_OPTIONS = [2, 10, 25, 50, 100];
 
 type SearchParams = TicketListSearchParams;
-
-/** Page numbers to render, with "ellipsis" markers where pages are skipped. */
-function getPageNumbers(
-  current: number,
-  total: number
-): Array<number | "ellipsis"> {
-  if (total <= 7) {
-    return Array.from({ length: total }, (_, i) => i + 1);
-  }
-
-  const pages = new Set<number>([1, total, current]);
-  if (current > 1) {
-    pages.add(current - 1);
-  }
-  if (current < total) {
-    pages.add(current + 1);
-  }
-  if (current <= 3) {
-    pages.add(2);
-    pages.add(3);
-    pages.add(4);
-  }
-  if (current >= total - 2) {
-    pages.add(total - 1);
-    pages.add(total - 2);
-    pages.add(total - 3);
-  }
-
-  const sorted = Array.from(pages)
-    .filter((p) => p >= 1 && p <= total)
-    .sort((a, b) => a - b);
-
-  const result: Array<number | "ellipsis"> = [];
-  let prev = 0;
-  for (const p of sorted) {
-    if (prev && p - prev > 1) {
-      result.push("ellipsis");
-    }
-    result.push(p);
-    prev = p;
-  }
-  return result;
-}
 
 interface Props {
   searchParams: Promise<SearchParams>;
@@ -329,7 +288,7 @@ async function TicketsResults({
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-base-content-muted">
           {total} ticket{total === 1 ? "" : "s"}
           {search || statusFilter || categoryFilter
             ? " matching your filters"
@@ -339,12 +298,12 @@ async function TicketsResults({
       </div>
 
       {rows.length === 0 ? (
-        <div className="bg-card rounded-xl border border-border shadow-soft flex flex-col items-center justify-center py-20 text-center">
-          <TicketIcon className="size-10 text-muted-foreground mb-3" />
-          <p className="text-base font-medium text-foreground">
+        <div className="bg-base-100 rounded-xl border border-base-300 shadow-soft flex flex-col items-center justify-center py-20 text-center">
+          <TicketIcon className="size-10 text-base-content-muted mb-3" />
+          <p className="text-base font-medium text-base-content">
             No tickets found
           </p>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-base-content-muted mt-1">
             {search || statusFilter || categoryFilter
               ? "Try adjusting your filters."
               : "Customers can submit tickets at your support portal."}
@@ -368,13 +327,19 @@ async function TicketsResults({
           {/* Pagination */}
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground shrink-0">
+              <span className="text-xs text-base-content-muted shrink-0">
                 Rows per page
               </span>
-              <PageSizeSelect pageSize={pageSize} />
+              <PageSizeSelect
+                basePath="/tickets"
+                options={PAGE_SIZE_OPTIONS}
+                pageSize={pageSize}
+              />
             </div>
 
-            {totalPages > 1 && <GoToPage totalPages={totalPages} />}
+            {totalPages > 1 && (
+              <GoToPage basePath="/tickets" totalPages={totalPages} />
+            )}
 
             {totalPages > 1 && (
               <nav aria-label="Pagination" className="flex items-center gap-1">
@@ -383,8 +348,8 @@ async function TicketsResults({
                   className={cn(
                     "inline-flex items-center gap-1 rounded-md px-2 h-8 text-sm font-medium transition-colors",
                     page <= 1
-                      ? "pointer-events-none text-muted-foreground/40"
-                      : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                      ? "pointer-events-none text-base-content-muted/40"
+                      : "text-base-content-muted hover:text-base-content hover:bg-base-300"
                   )}
                   href={buildPageUrl(Math.max(1, page - 1))}
                 >
@@ -395,7 +360,7 @@ async function TicketsResults({
                 {getPageNumbers(page, totalPages).map((p, i) =>
                   p === "ellipsis" ? (
                     <span
-                      className="inline-flex size-8 items-center justify-center text-sm text-muted-foreground"
+                      className="inline-flex size-8 items-center justify-center text-sm text-base-content-muted"
                       key={`ellipsis-${
                         // biome-ignore lint/suspicious/noArrayIndexKey: two ellipses can never be adjacent, so index is stable within this static list
                         i
@@ -408,8 +373,8 @@ async function TicketsResults({
                       className={cn(
                         "inline-flex size-8 items-center justify-center rounded-md text-sm font-medium transition-colors",
                         p === page
-                          ? "border border-border bg-card text-foreground"
-                          : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                          ? "border border-base-300 bg-base-100 text-base-content"
+                          : "text-base-content-muted hover:text-base-content hover:bg-base-300"
                       )}
                       href={buildPageUrl(p)}
                       key={p}
@@ -424,8 +389,8 @@ async function TicketsResults({
                   className={cn(
                     "inline-flex items-center gap-1 rounded-md px-2 h-8 text-sm font-medium transition-colors",
                     page >= totalPages
-                      ? "pointer-events-none text-muted-foreground/40"
-                      : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                      ? "pointer-events-none text-base-content-muted/40"
+                      : "text-base-content-muted hover:text-base-content hover:bg-base-300"
                   )}
                   href={buildPageUrl(Math.min(totalPages, page + 1))}
                 >
@@ -445,13 +410,13 @@ function TicketsTableSkeleton() {
   return (
     <div className="space-y-5">
       <Skeleton className="h-4 w-28" />
-      <div className="bg-card rounded-xl border border-border shadow-soft overflow-hidden">
+      <div className="bg-base-100 rounded-xl border border-base-300 shadow-soft overflow-hidden">
         {/* Header */}
-        <div className="border-b border-border bg-accent/50 px-4 py-3">
+        <div className="border-b border-base-300 bg-base-300/50 px-4 py-3">
           <Skeleton className="h-3 w-24" />
         </div>
         {/* Rows */}
-        <div className="divide-y divide-border/60">
+        <div className="divide-y divide-base-300/60">
           {skeletonKeys(8).map((k) => (
             <div className="flex items-center gap-4 px-4 py-3.5" key={k}>
               <Skeleton className="h-3 w-10 shrink-0" />

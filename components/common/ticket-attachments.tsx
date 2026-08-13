@@ -45,7 +45,7 @@ function formatBytes(bytes: number): string {
 }
 
 function FileTypeIcon({ mimeType }: { mimeType: string }) {
-  const cls = "size-5 shrink-0 text-muted-foreground";
+  const cls = "size-5 shrink-0 text-base-content-muted";
   if (mimeType === "application/pdf") {
     return <FilePdfIcon className={cls} />;
   }
@@ -172,11 +172,8 @@ function Lightbox({
   );
 }
 
-/**
- * Renders ticket/comment attachments inline: image files show as clickable
- * thumbnails that open an in-page lightbox; everything else shows as a compact
- * file card with a type icon + download affordance.
- */
+/** Renders attachments inline: images as clickable thumbnails opening an in-page
+ * lightbox, everything else as a compact file card with type icon and download. */
 export function TicketAttachments({
   items,
   className,
@@ -210,7 +207,7 @@ export function TicketAttachments({
         <div className="flex flex-wrap gap-2">
           {images.map((a, i) => (
             <div
-              className="group relative size-24 overflow-hidden rounded-lg border border-border bg-muted"
+              className="group relative size-24 overflow-hidden rounded-lg border border-base-300 bg-base-300"
               key={a.id}
             >
               <button
@@ -250,7 +247,7 @@ export function TicketAttachments({
 
       {files.map((a) => (
         <div
-          className="group flex max-w-sm items-center gap-2.5 rounded-lg border border-border bg-card px-3 py-2 transition-colors hover:bg-accent"
+          className="group flex max-w-sm items-center gap-2.5 rounded-lg border border-base-300 bg-base-100 px-3 py-2 transition-colors hover:bg-base-300"
           key={a.id}
         >
           <a
@@ -261,19 +258,19 @@ export function TicketAttachments({
           >
             <FileTypeIcon mimeType={a.mimeType} />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-medium text-foreground">
+              <p className="truncate text-xs font-medium text-base-content">
                 {a.filename}
               </p>
-              <p className="text-2xs text-muted-foreground">
+              <p className="text-2xs text-base-content-muted">
                 {formatBytes(a.fileSize)}
               </p>
             </div>
-            <DownloadSimpleIcon className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground" />
+            <DownloadSimpleIcon className="size-4 shrink-0 text-base-content-muted group-hover:text-base-content" />
           </a>
           {onDelete && (
             <button
               aria-label={`Delete ${a.filename}`}
-              className="shrink-0 text-muted-foreground transition-colors hover:text-destructive"
+              className="shrink-0 text-base-content-muted transition-colors hover:text-error"
               onClick={() => setDeleteTarget(a)}
               type="button"
             >
@@ -298,11 +295,8 @@ export function TicketAttachments({
       >
         <DialogContent>
           <DialogHeader>
-            <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-destructive/10">
-              <WarningCircleIcon
-                className="size-6 text-destructive"
-                weight="fill"
-              />
+            <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-error/10">
+              <WarningCircleIcon className="size-6 text-error" weight="fill" />
             </div>
             <DialogTitle className="text-center">
               Delete attachment?

@@ -22,6 +22,34 @@
       "when": 1785913355013,
       "tag": "0002_regular_old_lace",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786084826951,
+      "tag": "0003_gorgeous_forge",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1786452312093,
+      "tag": "0004_yielding_sasquatch",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786514683788,
+      "tag": "0005_add_pusher_test_result_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786526892289,
+      "tag": "0006_zippy_joystick",
+      "breakpoints": true
     }
   ]
 }

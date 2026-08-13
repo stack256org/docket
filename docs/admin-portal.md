@@ -282,6 +282,6 @@ This is provided by the scaffold — no custom implementation needed.
 
 - Admin-only items (Delete Ticket button, Users/Reports nav links) are conditionally rendered based on `session.user.role === 'admin'`.
 - The Users and Reports pages (`/admin/users`, `/admin/reports`) are not linked in the agent sidebar — only visible to admins.
-- Destructive actions (delete ticket, delete user, deactivate user) always use shadcn `Dialog` with explicit confirmation — never `window.confirm()`.
+- Destructive actions (delete ticket, delete user, deactivate user) always use `Dialog` from `components/ui/dialog.tsx` with explicit confirmation — never `window.confirm()`.
 - Use Phosphor Icons: `TrashIcon` for delete, `UserMinusIcon` / `UserPlusIcon` for deactivate / reactivate, `ShieldCheckIcon` for admin role.
 - Deactivate uses primary (not destructive) button styling and a muted status badge — it's routine off-boarding, not an error state. Only Delete Permanently is styled destructive.

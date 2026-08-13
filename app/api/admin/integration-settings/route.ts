@@ -1,11 +1,18 @@
+import { eq } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { integrationSettings } from "@/db/schema/integration-settings";
 import { audit } from "@/lib/audit";
 import { requireAdminFromRequest } from "@/lib/authz";
-import { encryptSecret } from "@/lib/crypto";
+import { decryptSecret, encryptSecret } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { getIntegrationSettingsSummary } from "@/lib/integration-settings";
+import {
+  testGoogleOAuthCredentials,
+  testPusherBeamsConnection,
+  testPusherChannelsConnection,
+  testSmtpConnection,
+} from "@/lib/integration-test";
 
 const VALID_STORAGE_DRIVERS = new Set(["local", "s3", "r2"]);
 
@@ -93,6 +100,20 @@ export async function PATCH(request: NextRequest) {
 
   const updates: Record<string, unknown> = {};
   const auditSections: string[] = [];
+  const testedSections: Record<string, { message: string; ok: boolean }> = {};
+
+  // Only the testable sections need the existing row (to merge in an
+  // untouched saved secret before testing) — storage doesn't.
+  const existing =
+    body.smtp || body.google || body.pusherChannels || body.pusherBeams
+      ? (
+          await db
+            .select()
+            .from(integrationSettings)
+            .where(eq(integrationSettings.id, "default"))
+            .limit(1)
+        )[0]
+      : undefined;
 
   if (body.smtp) {
     const port =
@@ -105,52 +126,162 @@ export async function PATCH(request: NextRequest) {
         { status: 400 }
       );
     }
-    Object.assign(
-      updates,
-      compact({
-        smtpHost: plainField(body.smtp.host),
-        smtpPort: port,
-        smtpUser: plainField(body.smtp.user),
-        smtpPassEncrypted: secretField(body.smtp.pass),
-        emailFrom: plainField(body.smtp.from),
-      })
-    );
+    const smtpUpdates = compact({
+      smtpHost: plainField(body.smtp.host),
+      smtpPort: port,
+      smtpUser: plainField(body.smtp.user),
+      smtpPassEncrypted: secretField(body.smtp.pass),
+      emailFrom: plainField(body.smtp.from),
+    });
+    Object.assign(updates, smtpUpdates);
     auditSections.push("smtp");
+
+    const mergedHost =
+      "smtpHost" in smtpUpdates ? smtpUpdates.smtpHost : existing?.smtpHost;
+    const mergedPort =
+      "smtpPort" in smtpUpdates ? smtpUpdates.smtpPort : existing?.smtpPort;
+    const mergedUser =
+      "smtpUser" in smtpUpdates ? smtpUpdates.smtpUser : existing?.smtpUser;
+    const mergedFrom =
+      "emailFrom" in smtpUpdates ? smtpUpdates.emailFrom : existing?.emailFrom;
+    const mergedPassEncrypted =
+      "smtpPassEncrypted" in smtpUpdates
+        ? smtpUpdates.smtpPassEncrypted
+        : existing?.smtpPassEncrypted;
+
+    if (
+      mergedHost &&
+      mergedPort &&
+      mergedUser &&
+      mergedFrom &&
+      mergedPassEncrypted
+    ) {
+      const result = await testSmtpConnection({
+        host: mergedHost,
+        port: mergedPort,
+        user: mergedUser,
+        pass: decryptSecret(mergedPassEncrypted),
+      });
+      updates.smtpLastTestedAt = new Date();
+      updates.smtpLastTestOk = result.ok;
+      updates.smtpLastTestError = result.ok ? null : result.message;
+      testedSections.smtp = result;
+    } else {
+      updates.smtpLastTestedAt = null;
+      updates.smtpLastTestOk = null;
+      updates.smtpLastTestError = null;
+    }
   }
 
   if (body.google) {
-    Object.assign(
-      updates,
-      compact({
-        googleClientId: plainField(body.google.clientId),
-        googleClientSecretEncrypted: secretField(body.google.clientSecret),
-      })
-    );
+    const googleUpdates = compact({
+      googleClientId: plainField(body.google.clientId),
+      googleClientSecretEncrypted: secretField(body.google.clientSecret),
+    });
+    Object.assign(updates, googleUpdates);
     auditSections.push("google");
+
+    const mergedClientId =
+      "googleClientId" in googleUpdates
+        ? googleUpdates.googleClientId
+        : existing?.googleClientId;
+    const mergedClientSecretEncrypted =
+      "googleClientSecretEncrypted" in googleUpdates
+        ? googleUpdates.googleClientSecretEncrypted
+        : existing?.googleClientSecretEncrypted;
+
+    if (mergedClientId && mergedClientSecretEncrypted) {
+      const result = await testGoogleOAuthCredentials(
+        mergedClientId,
+        decryptSecret(mergedClientSecretEncrypted)
+      );
+      updates.googleLastTestedAt = new Date();
+      updates.googleLastTestOk = result.ok;
+      updates.googleLastTestError = result.ok ? null : result.message;
+      testedSections.google = result;
+    } else {
+      updates.googleLastTestedAt = null;
+      updates.googleLastTestOk = null;
+      updates.googleLastTestError = null;
+    }
   }
 
   if (body.pusherBeams) {
-    Object.assign(
-      updates,
-      compact({
-        pusherBeamsInstanceId: plainField(body.pusherBeams.instanceId),
-        pusherBeamsSecretKeyEncrypted: secretField(body.pusherBeams.secretKey),
-      })
-    );
+    const pusherBeamsUpdates = compact({
+      pusherBeamsInstanceId: plainField(body.pusherBeams.instanceId),
+      pusherBeamsSecretKeyEncrypted: secretField(body.pusherBeams.secretKey),
+    });
+    Object.assign(updates, pusherBeamsUpdates);
     auditSections.push("pusherBeams");
+
+    const mergedInstanceId =
+      "pusherBeamsInstanceId" in pusherBeamsUpdates
+        ? pusherBeamsUpdates.pusherBeamsInstanceId
+        : existing?.pusherBeamsInstanceId;
+    const mergedSecretKeyEncrypted =
+      "pusherBeamsSecretKeyEncrypted" in pusherBeamsUpdates
+        ? pusherBeamsUpdates.pusherBeamsSecretKeyEncrypted
+        : existing?.pusherBeamsSecretKeyEncrypted;
+
+    if (mergedInstanceId && mergedSecretKeyEncrypted) {
+      const result = await testPusherBeamsConnection({
+        instanceId: mergedInstanceId,
+        secretKey: decryptSecret(mergedSecretKeyEncrypted),
+      });
+      updates.pusherBeamsLastTestedAt = new Date();
+      updates.pusherBeamsLastTestOk = result.ok;
+      updates.pusherBeamsLastTestError = result.ok ? null : result.message;
+      testedSections.pusherBeams = result;
+    } else {
+      updates.pusherBeamsLastTestedAt = null;
+      updates.pusherBeamsLastTestOk = null;
+      updates.pusherBeamsLastTestError = null;
+    }
   }
 
   if (body.pusherChannels) {
-    Object.assign(
-      updates,
-      compact({
-        pusherAppId: plainField(body.pusherChannels.appId),
-        pusherKey: plainField(body.pusherChannels.key),
-        pusherSecretEncrypted: secretField(body.pusherChannels.secret),
-        pusherCluster: plainField(body.pusherChannels.cluster),
-      })
-    );
+    const pusherChannelsUpdates = compact({
+      pusherAppId: plainField(body.pusherChannels.appId),
+      pusherKey: plainField(body.pusherChannels.key),
+      pusherSecretEncrypted: secretField(body.pusherChannels.secret),
+      pusherCluster: plainField(body.pusherChannels.cluster),
+    });
+    Object.assign(updates, pusherChannelsUpdates);
     auditSections.push("pusherChannels");
+
+    const mergedAppId =
+      "pusherAppId" in pusherChannelsUpdates
+        ? pusherChannelsUpdates.pusherAppId
+        : existing?.pusherAppId;
+    const mergedKey =
+      "pusherKey" in pusherChannelsUpdates
+        ? pusherChannelsUpdates.pusherKey
+        : existing?.pusherKey;
+    const mergedCluster =
+      "pusherCluster" in pusherChannelsUpdates
+        ? pusherChannelsUpdates.pusherCluster
+        : existing?.pusherCluster;
+    const mergedSecretEncrypted =
+      "pusherSecretEncrypted" in pusherChannelsUpdates
+        ? pusherChannelsUpdates.pusherSecretEncrypted
+        : existing?.pusherSecretEncrypted;
+
+    if (mergedAppId && mergedKey && mergedCluster && mergedSecretEncrypted) {
+      const result = await testPusherChannelsConnection({
+        appId: mergedAppId,
+        key: mergedKey,
+        cluster: mergedCluster,
+        secret: decryptSecret(mergedSecretEncrypted),
+      });
+      updates.pusherChannelsLastTestedAt = new Date();
+      updates.pusherChannelsLastTestOk = result.ok;
+      updates.pusherChannelsLastTestError = result.ok ? null : result.message;
+      testedSections.pusherChannels = result;
+    } else {
+      updates.pusherChannelsLastTestedAt = null;
+      updates.pusherChannelsLastTestOk = null;
+      updates.pusherChannelsLastTestError = null;
+    }
   }
 
   if (body.storage) {
@@ -212,5 +343,5 @@ export async function PATCH(request: NextRequest) {
     metadata: { sections: auditSections },
   });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, tested: testedSections });
 }

@@ -32,6 +32,10 @@ export function GoogleOAuthSettingsForm({
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [lastTestedAt, setLastTestedAt] = useState(initial.lastTestedAt);
+  const [lastTestOk, setLastTestOk] = useState(initial.lastTestOk);
+  const [lastTestError, setLastTestError] = useState(initial.lastTestError);
 
   const configured = !!(clientId && hasClientSecret);
 
@@ -47,27 +51,37 @@ export function GoogleOAuthSettingsForm({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ google: body }),
     });
-    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    const data = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      tested?: { google?: { message: string; ok: boolean } };
+    };
     if (!res.ok) {
       toast.error(data.error ?? "Failed to save.");
-      return false;
+      return null;
     }
     toast.success(message);
-    return true;
+    return data;
   }
 
   async function save() {
     setSaving(true);
     try {
-      const ok = await patch(
+      const data = await patch(
         { clientId, clientSecret: clientSecret || undefined },
         "Google sign-in settings saved."
       );
-      if (ok) {
+      if (data) {
         if (clientSecret) {
           setHasClientSecret(true);
         }
         setClientSecret("");
+        const tested = data.tested?.google;
+        setLastTestedAt(tested ? new Date().toISOString() : null);
+        setLastTestOk(tested ? tested.ok : null);
+        setLastTestError(tested && !tested.ok ? tested.message : null);
+        if (tested && !tested.ok) {
+          toast.error(`Saved, but credential check failed: ${tested.message}`);
+        }
       }
     } catch {
       toast.error("Network error. Please try again.");
@@ -79,19 +93,53 @@ export function GoogleOAuthSettingsForm({
   async function remove() {
     setRemoving(true);
     try {
-      const ok = await patch(
+      const data = await patch(
         { clientId: "", clientSecret: "" },
         "Google sign-in settings removed."
       );
-      if (ok) {
+      if (data) {
         setClientId("");
         setClientSecret("");
         setHasClientSecret(false);
+        setLastTestedAt(null);
+        setLastTestOk(null);
+        setLastTestError(null);
       }
     } catch {
       toast.error("Network error. Please try again.");
     } finally {
       setRemoving(false);
+    }
+  }
+
+  async function testConnection() {
+    setTesting(true);
+    try {
+      const res = await fetch("/api/admin/integration-settings/google/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId,
+          clientSecret: clientSecret || undefined,
+        }),
+      });
+      const result = (await res.json().catch(() => ({}))) as {
+        message?: string;
+        ok?: boolean;
+      };
+      const ok = res.ok && !!result.ok;
+      setLastTestedAt(new Date().toISOString());
+      setLastTestOk(ok);
+      setLastTestError(ok ? null : (result.message ?? "Test failed."));
+      if (ok) {
+        toast.success(result.message ?? "Credentials are valid.");
+      } else {
+        toast.error(result.message ?? "Credential check failed.");
+      }
+    } catch {
+      toast.error("Network error. Please try again.");
+    } finally {
+      setTesting(false);
     }
   }
 
@@ -104,23 +152,26 @@ export function GoogleOAuthSettingsForm({
       note="Changes here take effect after the app restarts — this login page reads Google credentials once at server startup, not per request. In Docker: docker compose restart app."
       onRemove={remove}
       onSave={save}
+      onTest={testConnection}
       removing={removing}
       saving={saving}
+      testing={testing}
       title="Google Sign-in"
+      verification={{ lastTestedAt, lastTestOk, lastTestError }}
     >
       <div className="space-y-1.5 mb-4">
         <Label>Authorized redirect URI</Label>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-base-content-muted">
           Add this URL to your Google Cloud OAuth client's "Authorized redirect
           URIs", with {"{your_domain}"} replaced by this app's URL — Google
           sign-in fails with a redirect_uri_mismatch error otherwise.
         </p>
-        <div className="flex items-center gap-2 rounded-md border border-border bg-accent px-3 py-2">
-          <code className="text-xs text-foreground break-all flex-1">
+        <div className="flex items-center gap-2 rounded-md border border-base-300 bg-base-300 px-3 py-2">
+          <code className="text-xs text-base-content break-all flex-1">
             {REDIRECT_URI_TEMPLATE}
           </code>
           <button
-            className="shrink-0 text-muted-foreground hover:text-foreground"
+            className="shrink-0 text-base-content-muted hover:text-base-content"
             onClick={copyRedirectUri}
             type="button"
           >

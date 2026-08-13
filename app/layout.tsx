@@ -3,7 +3,11 @@ import { Inter } from "next/font/google";
 import type { ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { PRODUCT_DESCRIPTION } from "@/config/platform";
-import { getPlatformSettings, resolveBrandName } from "@/lib/settings";
+import {
+  getPlatformSettings,
+  resolveBrandName,
+  resolveFaviconUrl,
+} from "@/lib/settings";
 import { cn } from "@/lib/utils";
 import "./globals.css";
 
@@ -21,12 +25,16 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getPlatformSettings();
   const name = resolveBrandName(settings.brandName);
+  const faviconUrl = resolveFaviconUrl(settings.faviconKey, settings.logoKey);
   return {
     title: {
       default: name,
       template: `%s | ${name}`,
     },
     description: PRODUCT_DESCRIPTION,
+    // Falls back to public/favicon.ico (Next.js's implicit default) when
+    // neither a favicon nor a logo is configured.
+    icons: faviconUrl ? { icon: faviconUrl } : undefined,
   };
 }
 

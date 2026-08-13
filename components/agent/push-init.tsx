@@ -2,13 +2,10 @@
 
 import { useEffect } from "react";
 
-/**
- * Registers the current agent's browser with Pusher Beams so they receive OS-level
- * push notifications. No-op when Beams isn't configured (fetched at runtime from
- * /api/config/client — see lib/pusher-browser.ts for why this isn't read off
- * NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID directly) or the browser can't support web
- * push. Renders nothing.
- */
+/** Registers the agent's browser with Pusher Beams for OS-level push. Config is
+ * fetched at runtime from /api/config/client rather than read off NEXT_PUBLIC_*
+ * (see lib/pusher-browser.ts). Renders nothing; no-op when unconfigured or
+ * unsupported. */
 export function PushInit({ userId }: { userId: string }) {
   useEffect(() => {
     if (typeof window === "undefined") {

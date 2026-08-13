@@ -162,10 +162,10 @@ export function AgentReplyForm({
           toggle on the left, send on the right. */}
       <div
         className={cn(
-          "overflow-hidden rounded-xl border bg-card transition-[color,border-color,box-shadow] focus-within:ring-2",
+          "overflow-hidden rounded-xl border bg-base-100 transition-[color,border-color,box-shadow] focus-within:ring-2",
           isInternal
             ? "border-amber-200 bg-amber-50 dark:border-amber-900/70 dark:bg-amber-950/40 focus-within:border-amber-400 focus-within:ring-amber-400/20"
-            : "border-input focus-within:border-ring focus-within:ring-ring/20"
+            : "border-base-300 focus-within:border-primary focus-within:ring-primary/20"
         )}
       >
         <RichTextEditor
@@ -201,20 +201,20 @@ export function AgentReplyForm({
                     // biome-ignore lint/performance/noImgElement: local object-URL preview of a not-yet-uploaded file, not a remote asset
                     <img
                       alt={f.name}
-                      className="size-16 rounded-lg border border-border object-cover"
+                      className="size-16 rounded-lg border border-base-300 object-cover"
                       src={preview}
                     />
                   ) : (
-                    <div className="flex size-16 flex-col items-center justify-center gap-1 rounded-lg border border-border bg-accent px-1.5 text-center">
-                      <PaperclipIcon className="size-4 shrink-0 text-muted-foreground" />
-                      <span className="w-full truncate text-2xs text-muted-foreground">
+                    <div className="flex size-16 flex-col items-center justify-center gap-1 rounded-lg border border-base-300 bg-base-300 px-1.5 text-center">
+                      <PaperclipIcon className="size-4 shrink-0 text-base-content-muted" />
+                      <span className="w-full truncate text-2xs text-base-content-muted">
                         {f.name}
                       </span>
                     </div>
                   )}
                   <button
                     aria-label={`Remove ${f.name}`}
-                    className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-foreground text-background shadow-sm transition-transform hover:scale-110"
+                    className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-base-content text-base-200 shadow-sm transition-transform hover:scale-110"
                     onClick={() => removeFile(i)}
                     type="button"
                   >
@@ -234,8 +234,8 @@ export function AgentReplyForm({
               className={cn(
                 "flex size-8 items-center justify-center rounded-md transition-colors",
                 maxNewFiles > 0 && !submitting
-                  ? "text-foreground hover:bg-accent cursor-pointer"
-                  : "text-muted-foreground/40 cursor-not-allowed"
+                  ? "text-base-content hover:bg-base-300 cursor-pointer"
+                  : "text-base-content-muted/40 cursor-not-allowed"
               )}
               title={
                 maxNewFiles > 0 ? "Attach file" : "Attachment limit reached"
@@ -259,7 +259,7 @@ export function AgentReplyForm({
                 "flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
                 isInternal
                   ? "bg-amber-100 text-amber-800 dark:bg-amber-900/70 dark:text-amber-100"
-                  : "text-foreground hover:bg-accent"
+                  : "text-base-content hover:bg-base-300"
               )}
               onClick={() => setIsInternal((v) => !v)}
               onMouseDown={(e) => e.preventDefault()}
@@ -277,7 +277,7 @@ export function AgentReplyForm({
               "size-8 shrink-0 rounded-lg p-0",
               isInternal
                 ? "bg-amber-600 hover:bg-amber-700 text-white"
-                : "bg-primary hover:bg-primary/90 text-primary-foreground"
+                : "bg-primary hover:bg-primary/90 text-primary-content"
             )}
             disabled={
               submitting || (isRichTextEmpty(content) && files.length === 0)

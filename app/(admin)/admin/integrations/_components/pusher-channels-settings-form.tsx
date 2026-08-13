@@ -28,6 +28,10 @@ export function PusherChannelsSettingsForm({
   const [cluster, setCluster] = useState(initial.cluster);
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [lastTestedAt, setLastTestedAt] = useState(initial.lastTestedAt);
+  const [lastTestOk, setLastTestOk] = useState(initial.lastTestOk);
+  const [lastTestError, setLastTestError] = useState(initial.lastTestError);
 
   const configured = !!(appId && key && cluster && hasSecret);
 
@@ -37,27 +41,37 @@ export function PusherChannelsSettingsForm({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pusherChannels: body }),
     });
-    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    const data = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      tested?: { pusherChannels?: { message: string; ok: boolean } };
+    };
     if (!res.ok) {
       toast.error(data.error ?? "Failed to save.");
-      return false;
+      return null;
     }
     toast.success(message);
-    return true;
+    return data;
   }
 
   async function save() {
     setSaving(true);
     try {
-      const ok = await patch(
+      const data = await patch(
         { appId, key, cluster, secret: secret || undefined },
         "Pusher Channels settings saved."
       );
-      if (ok) {
+      if (data) {
         if (secret) {
           setHasSecret(true);
         }
         setSecret("");
+        const tested = data.tested?.pusherChannels;
+        setLastTestedAt(tested ? new Date().toISOString() : null);
+        setLastTestOk(tested ? tested.ok : null);
+        setLastTestError(tested && !tested.ok ? tested.message : null);
+        if (tested && !tested.ok) {
+          toast.error(`Saved, but connection test failed: ${tested.message}`);
+        }
       }
     } catch {
       toast.error("Network error. Please try again.");
@@ -69,21 +83,60 @@ export function PusherChannelsSettingsForm({
   async function remove() {
     setRemoving(true);
     try {
-      const ok = await patch(
+      const data = await patch(
         { appId: "", key: "", cluster: "", secret: "" },
         "Pusher Channels settings removed."
       );
-      if (ok) {
+      if (data) {
         setAppId("");
         setKey("");
         setCluster("");
         setSecret("");
         setHasSecret(false);
+        setLastTestedAt(null);
+        setLastTestOk(null);
+        setLastTestError(null);
       }
     } catch {
       toast.error("Network error. Please try again.");
     } finally {
       setRemoving(false);
+    }
+  }
+
+  async function testConnection() {
+    setTesting(true);
+    try {
+      const res = await fetch(
+        "/api/admin/integration-settings/pusher-channels/test",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            appId,
+            key,
+            cluster,
+            secret: secret || undefined,
+          }),
+        }
+      );
+      const result = (await res.json().catch(() => ({}))) as {
+        message?: string;
+        ok?: boolean;
+      };
+      const ok = res.ok && !!result.ok;
+      setLastTestedAt(new Date().toISOString());
+      setLastTestOk(ok);
+      setLastTestError(ok ? null : (result.message ?? "Test failed."));
+      if (ok) {
+        toast.success(result.message ?? "Connection succeeded.");
+      } else {
+        toast.error(result.message ?? "Connection test failed.");
+      }
+    } catch {
+      toast.error("Network error. Please try again.");
+    } finally {
+      setTesting(false);
     }
   }
 
@@ -95,9 +148,12 @@ export function PusherChannelsSettingsForm({
       description="Live ticket list and ticket-detail updates with no page refresh. A different Pusher product from Beams above — from dashboard.pusher.com → Channels."
       onRemove={remove}
       onSave={save}
+      onTest={testConnection}
       removing={removing}
       saving={saving}
+      testing={testing}
       title="Real-Time Updates (Pusher Channels)"
+      verification={{ lastTestedAt, lastTestOk, lastTestError }}
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">

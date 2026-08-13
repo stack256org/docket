@@ -86,6 +86,8 @@ An admin can enable/disable each method at runtime from **`/admin/appearance`** 
 
 Google's toggle only controls whether the *configured* provider is offered — turning it on without a Client ID/Secret set (via Integrations or env) does nothing (the switch is disabled in the UI in that case). Google credentials are resolved once, at process startup (`lib/auth.ts` reads `getGoogleOAuthSettings()` via a top-level `await`, since Better Auth builds `socialProviders` synchronously) — unlike every other integration, saving new Google credentials from Admin → Integrations needs an app restart (`docker compose restart app`) before sign-in picks them up, even though the UI reflects the saved value immediately.
 
+**Credential verification:** the SMTP and Google Sign-in cards on Admin → Integrations don't just check that the fields are non-empty. A "Test connection" button runs a real check on demand (SMTP: `nodemailer`'s `transporter.verify()` — a full connect + auth handshake with no mail sent; Google: an OAuth token exchange with a deliberately invalid code, whose error tells apart a bad client ID/secret pair from a bad code — see `lib/integration-test.ts`), and the same check runs automatically on every Save. The result (`{host,google}LastTestedAt/Ok/Error` on `integration_settings`) drives the badge: "Not configured" → "Configured" (saved, never tested) → "Verified `<relative time>`" or "Needs attention" (saved but the last check failed, with the server's error shown inline). For Google, "Verified" only means the credentials themselves are valid — the running server still needs a restart to pick them up, per the note above.
+
 ### Sign-In Flow
 
 1. Agent/admin visits `/login`.
