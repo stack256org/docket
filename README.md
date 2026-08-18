@@ -354,15 +354,15 @@ docker compose up -d
 Pin a version in production, because `latest` moves with every release:
 
 ```bash
-IMAGE_TAG=0.2.0 docker compose up -d
+IMAGE_TAG=0.3.0 docker compose up -d
 ```
 
-Available tags are `latest`, the `0` / `0.2` / `0.2.0` ladder, `main` (rebuilt on
+Available tags are `latest`, the `0` / `0.3` / `0.3.0` ladder, `main` (rebuilt on
 every change, expect rough edges), and a fixed `sha-<short>` per build. Each carries builds
 for both Intel and ARM machines:
 
 ```bash
-docker pull ghcr.io/stack256org/docket:0.2.0
+docker pull ghcr.io/stack256org/docket:0.3.0
 ```
 <!-- END GENERATED: image-tags -->
 
