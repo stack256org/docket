@@ -9,6 +9,18 @@ Anything needing manual work on upgrade is called out under **Upgrade notes**.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-18
+
+### Changed
+
+- Replaced Radix UI/shadcn with Headless UI + daisyUI across every
+  `components/ui/*` primitive and their call sites. daisyUI component classes
+  now carry appearance (`btn`, `badge`, `card`, `modal-box`, `menu`, `input`,
+  `table`, …) while Headless UI supplies behavior only (focus trap, roving
+  tabindex, typeahead, ARIA) for `Dialog`, `Menu`, and `Listbox`. `Popover`
+  and `Tooltip` are built on `@floating-ui/react` instead. Radix UI and
+  shadcn are fully removed from the project.
+
 ## [0.2.0] - 2026-08-07
 
 ### Added
