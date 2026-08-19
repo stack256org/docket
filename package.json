@@ -1,6 +1,6 @@
 {
   "name": "docket",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Open-source, self-hosted customer support ticketing system.",
   "type": "module",
   "license": "MIT",
@@ -54,6 +54,7 @@
     "make:admin": "tsx scripts/make-admin.ts",
     "create:admin": "tsx scripts/create-admin.ts",
     "migrate:zammad": "tsx --env-file-if-exists=.env scripts/migrate-zammad.ts",
+    "migrate:zammad:sync": "tsx --env-file-if-exists=.env scripts/migrate-zammad.ts --sync",
     "migrate:zammad:users": "tsx --env-file-if-exists=.env scripts/migrate-zammad-users.ts",
     "seed": "tsx --env-file=.env scripts/seed-defaults.ts",
     "db:seed": "tsx scripts/seed-defaults.ts",

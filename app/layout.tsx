@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import type { ReactNode } from "react";
+import { ThemeScript } from "@/components/theme/theme-script";
 import { Toaster } from "@/components/ui/sonner";
 import { PRODUCT_DESCRIPTION } from "@/config/platform";
 import {
@@ -38,9 +39,17 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: ReactNode }>) {
+  // Only the agent/admin portals have dark mode (the customer portal is
+  // always light — see CLAUDE.md), but next/script's beforeInteractive
+  // strategy is only hoisted into the initial HTML correctly from the root
+  // layout — placed in a nested layout it renders as a literal <script>
+  // and Next/React warn on every render. Fetching settings here (unused by
+  // the customer portal) is the tradeoff for that placement requirement.
+  const settings = await getPlatformSettings();
+
   return (
     <html
       className={cn("font-sans", inter.variable)}
@@ -48,6 +57,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body suppressHydrationWarning>
+        <ThemeScript appearanceMode={settings.appearanceMode} />
         {children}
         <Toaster />
       </body>

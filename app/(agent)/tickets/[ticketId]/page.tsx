@@ -44,6 +44,7 @@ import {
   type TicketListSearchParams,
   toQueryString,
 } from "@/lib/tickets-list-query";
+import { getSendReplyOnEnterPref } from "@/lib/user-preferences";
 import { getInitials } from "@/lib/utils";
 import { AgentReplyForm } from "./_components/agent-reply-form";
 import { CustomerProfilePopover } from "./_components/customer-profile-popover";
@@ -206,6 +207,7 @@ export default async function AgentTicketDetailPage({
     customFields,
     prevTicketId,
     nextTicketId,
+    sendReplyOnEnter,
   ] = await Promise.all([
     getTicketStatuses(),
     getTicketCategories(),
@@ -216,6 +218,7 @@ export default async function AgentTicketDetailPage({
     getCustomFieldValues(ticketId),
     getAdjacentTicketId("prev", listWhereClause, sortKey, sortOrder, ticket),
     getAdjacentTicketId("next", listWhereClause, sortKey, sortOrder, ticket),
+    getSendReplyOnEnterPref(session.id),
   ]);
 
   const statusMap = Object.fromEntries(statuses.map((s) => [s.slug, s]));
@@ -498,6 +501,7 @@ export default async function AgentTicketDetailPage({
             <div className="shrink-0 px-4 pb-4 pt-2 lg:px-8 lg:pb-6">
               <AgentReplyForm
                 cannedResponses={cannedResponses}
+                sendReplyOnEnter={sendReplyOnEnter}
                 ticketId={ticket.id}
                 totalAttachments={attachments.length}
               />

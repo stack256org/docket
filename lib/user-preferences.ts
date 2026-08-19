@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { userTicketTablePrefs } from "@/db/schema/user-preferences";
 import { db } from "@/lib/db";
+import { resolveSendReplyOnEnterPref } from "@/lib/reply-composer-keys";
 import {
   type ColumnPref,
   resolveColumnPrefs,
@@ -15,4 +16,15 @@ export async function getTicketTableColumnPrefs(
     .where(eq(userTicketTablePrefs.userId, userId))
     .limit(1);
   return resolveColumnPrefs(row?.columns);
+}
+
+export async function getSendReplyOnEnterPref(
+  userId: string
+): Promise<boolean> {
+  const [row] = await db
+    .select({ sendReplyOnEnter: userTicketTablePrefs.sendReplyOnEnter })
+    .from(userTicketTablePrefs)
+    .where(eq(userTicketTablePrefs.userId, userId))
+    .limit(1);
+  return resolveSendReplyOnEnterPref(row);
 }

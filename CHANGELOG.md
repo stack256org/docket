@@ -9,6 +9,29 @@ Anything needing manual work on upgrade is called out under **Upgrade notes**.
 
 ## [Unreleased]
 
+### Added
+
+- Zammad migration: a **sync mode** (`pnpm migrate:zammad:sync`, or
+  `MIGRATION_SYNC=1`). A plain re-run of `migrate:zammad` only ever imported
+  tickets that didn't exist yet and skipped already-imported ones whole, so
+  anything that changed in Zammad afterwards — a ticket being closed, new
+  replies, priority/assignee/subject/tag edits, files added to a thread —
+  never arrived. Sync mode re-reads those tickets and updates them in place,
+  appending only the articles it hasn't copied before. It is additive: nothing
+  in Docket is deleted, and work done by agents inside Docket survives.
+  See `docs/deployment-and-zammad-migration.md` §7.4.
+
+## [0.3.1] - 2026-08-19
+
+### Added
+
+- A new personal **Settings** page (`/settings`, agents/admins only) for
+  per-agent preferences, starting with a **"Send reply on Enter"** toggle for
+  the ticket reply composer. On (the default, matching prior behavior) Enter
+  sends the reply and Shift+Enter inserts a newline; off, Enter always
+  inserts a newline and only the Send button submits. Stored per agent in
+  `user_ticket_table_prefs.send_reply_on_enter`.
+
 ## [0.3.0] - 2026-08-18
 
 ### Changed

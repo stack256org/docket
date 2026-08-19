@@ -7,6 +7,7 @@ import {
   ChatTextIcon,
   ClockCounterClockwiseIcon,
   EnvelopeSimpleIcon,
+  GearSixIcon,
   type Icon,
   KeyIcon,
   ListChecksIcon,
@@ -48,6 +49,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: SquaresFourIcon },
   { href: "/tickets", label: "All Tickets", icon: TicketIcon },
   { href: "/canned-responses", label: "Canned Responses", icon: ChatTextIcon },
+  { href: "/settings", label: "Settings", icon: GearSixIcon },
 ];
 
 const adminItems = [
