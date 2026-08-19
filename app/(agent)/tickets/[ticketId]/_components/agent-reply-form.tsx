@@ -29,6 +29,7 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 interface Props {
   cannedResponses?: { id: string; title: string; content: string }[];
+  sendReplyOnEnter: boolean;
   ticketId: string;
   totalAttachments: number;
 }
@@ -37,6 +38,7 @@ export function AgentReplyForm({
   ticketId,
   totalAttachments,
   cannedResponses,
+  sendReplyOnEnter,
 }: Props) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -182,6 +184,7 @@ export function AgentReplyForm({
               : "Write a reply to the customer…"
           }
           ref={editorRef}
+          sendOnEnter={sendReplyOnEnter}
           tone={isInternal ? "warning" : "default"}
           value={content}
         />

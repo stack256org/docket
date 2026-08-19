@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { cache } from "react";
 import { PRODUCT_NAME } from "@/config/platform";
 import { platformSettings } from "@/db/schema/settings";
 import { db } from "@/lib/db";
@@ -6,7 +7,11 @@ import { DEFAULT_EMAIL_ACCENT } from "@/lib/email/components/layout";
 import { env } from "@/lib/env";
 import { storage } from "@/lib/storage";
 
-export async function getPlatformSettings() {
+// cache() dedupes repeat calls within one request — the root layout,
+// generateMetadata, and the agent/admin layouts each read this independently.
+// Outside a React render (e.g. the pg-boss worker calling getEmailBranding),
+// cache() is a harmless no-op passthrough.
+export const getPlatformSettings = cache(async () => {
   const [row] = await db
     .select()
     .from(platformSettings)
@@ -29,7 +34,7 @@ export async function getPlatformSettings() {
       emailAccentColor: null as string | null,
     }
   );
-}
+});
 
 /** The configured brand name, or the PRODUCT_NAME default when unset. */
 export function resolveBrandName(brandName: string | null | undefined): string {

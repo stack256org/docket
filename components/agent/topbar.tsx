@@ -6,6 +6,7 @@ import {
   ChatTextIcon,
   ClockCounterClockwiseIcon,
   EnvelopeSimpleIcon,
+  GearSixIcon,
   type Icon,
   KeyIcon,
   ListChecksIcon,
@@ -53,6 +54,11 @@ const ROUTE_META: Record<string, RouteMeta> = {
     title: "Your Profile",
     description: "Manage your account, password, active sessions, and data.",
     icon: UserCircleIcon,
+  },
+  "/settings": {
+    title: "Settings",
+    description: "Personal preferences for how you work in Docket.",
+    icon: GearSixIcon,
   },
   "/admin/users": {
     title: "Users",

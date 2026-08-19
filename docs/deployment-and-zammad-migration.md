@@ -134,8 +134,11 @@ scripts are **read-only against Zammad** — they only issue `GET` requests
 Zammad is ever modified or deleted; the scripts only copy data out into
 Docket's own database and file storage.
 
-Both scripts are **idempotent** — safe to re-run. Already-migrated tickets
-/ users are skipped, never duplicated.
+Both scripts are **idempotent** — safe to re-run, and nothing is ever
+duplicated. Be clear on what a plain re-run does, though: it imports tickets
+that weren't there last time and leaves already-imported ones untouched. To
+also pull across what changed in Zammad since (replies, closes,
+priority/assignee/tag edits), re-run in **sync mode** — see 7.4.
 
 ### 7.1 Dry run first
 
@@ -205,6 +208,8 @@ Useful optional flags (pass as `-e` before `app`, same as above):
 | `MIGRATION_ZAMMAD_SEARCH` | Restrict export to a Zammad search query, e.g. `tags:DTM`. Omit to migrate ALL tickets. |
 | `MIGRATION_LIMIT` | Stop after seeing N tickets (oldest-first) — useful for a first test batch, e.g. `100`. |
 | `MIGRATION_DEFAULT_CATEGORY` | Category slug assigned to imported tickets (default `issue`). |
+| `MIGRATION_SYNC` | `1` (or the `--sync` flag) — also update already-imported tickets instead of skipping them. See 7.4. |
+| `MIGRATION_SYNC_FORCE` | `1` (or `--sync-force`) — sync mode, but re-read every ticket rather than trusting Zammad's `updated_at` to say which ones changed. |
 
 **Attachments — important caveat:** unlike the app's normal upload path
 (which restricts uploads to JPG/PNG/PDF/ZIP/TXT, 10 MB max, 5 files per
@@ -220,7 +225,79 @@ migrated ticket make it resume without duplicating anything. If some
 tickets fail, only those are retried on the next run (see the summary
 printed at the end for a failed count and pointer to the checkpoint file).
 
-### 7.4 Order matters, but there's a safety net
+### 7.4 Keeping Docket up to date afterwards (sync mode)
+
+The command in 7.3 is **import-only**: it adds tickets that aren't in Docket
+yet and leaves every ticket it already imported exactly as it was. So a second
+run days later brings across the *new* tickets, but nothing that happened to
+the older ones in the meantime — a ticket closed in Zammad still shows as open
+here, replies added to an existing thread never appear, and priority, subject,
+assignee and tag edits are all missed.
+
+To pull those across, run the migration in **sync mode**:
+
+```bash
+docker compose exec \
+  -e ZAMMAD_BASE_URL="https://your-zammad.example.com" \
+  -e ZAMMAD_API_TOKEN="your-admin-api-token" \
+  app pnpm migrate:zammad:sync
+```
+
+(That is just `migrate:zammad --sync`; `-e MIGRATION_SYNC=1` does the same if
+you'd rather pass an env var. `MIGRATION_DRY_RUN=1` works here too, and prints
+exactly which tickets would change and how — do that first.)
+
+What a sync brings across on an already-imported ticket:
+
+| Synced | Notes |
+|---|---|
+| New replies and internal notes | Appended in place. Replies already imported are never duplicated or rewritten. |
+| Attachments | For new replies, plus any file added to a thread that was already imported. |
+| Status (open/closed) and closed date | From Zammad's ticket state, via the same mapping the first import uses. |
+| Priority, subject | |
+| Assignee | Taken from Zammad's ticket owner whenever that person has a Docket account (so run `migrate:zammad:users` first if new agents joined). |
+| Tags | Add-only — see below. |
+| Awaiting-reply flag and unread count | Recomputed from the whole thread. |
+
+What it deliberately does **not** do:
+
+- **Nothing is ever deleted.** A reply removed in Zammad stays in Docket, and
+  so does a tag removed in Zammad — agents can also tag a ticket from inside
+  Docket and there's no way to tell the two apart. Tickets deleted in Zammad
+  are left alone as well.
+- **An assignee set inside Docket survives.** Docket only clears an assignee
+  when Zammad has no owner *and* the current assignee is still the exact
+  person Zammad's owner field last named.
+- **Ticket numbers stay Docket's own**, as with the first import.
+
+One thing to know before syncing tickets your agents are already working on
+in Docket: **a sync mirrors Zammad, so Zammad wins on every field it owns.**
+Status in particular maps onto open/closed only — the same two the first
+import uses — so a migrated ticket someone moved to another status in Docket
+is pulled back to whatever Zammad says. The awaiting-reply flag is likewise
+recomputed from the Zammad thread, which doesn't know about replies your
+agents wrote in Docket. Sync while Zammad is still the system of record, and
+stop once the team has moved over.
+
+Speed: the ticket listing already tells the script Zammad's `updated_at` for
+every ticket, so a ticket untouched since the last sync is skipped without
+fetching anything else, and a repeat sync over a large instance is cheap. Two
+caveats:
+
+- The **first** sync after upgrading to this version has no recorded
+  `updated_at` for tickets imported before it, so it re-reads all of them once.
+  Slower than later runs — and it's the run that backfills everything missed
+  so far.
+- Tag changes in Zammad don't reliably bump the ticket's own `updated_at`. If
+  you specifically need tag edits picked up, add `-e MIGRATION_SYNC_FORCE=1`
+  (or `--sync-force`), which re-reads every ticket instead of trusting
+  `updated_at`.
+
+Sync mode is safe to run repeatedly, on a schedule if you like. Like the
+import, it writes straight to the database — it never emails anyone, fires a
+webhook, or raises an in-app notification for the history it copies.
+
+### 7.5 Order matters, but there's a safety net
 
 Run `migrate:zammad:users` **before** `migrate:zammad` — replies and the
 ticket assignee then link directly to the right agent account as they're

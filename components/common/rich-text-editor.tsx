@@ -28,6 +28,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { shouldSendOnEnter } from "@/lib/reply-composer-keys";
 import { isRichTextEmpty } from "@/lib/rich-text";
 import { cn } from "@/lib/utils";
 import {
@@ -60,10 +61,12 @@ interface Props {
   onFilesDropped?: (files: File[]) => void;
   /** Called when the editor gains focus. */
   onFocus?: () => void;
-  /** When provided, Enter sends (Shift+Enter still inserts a newline) — pass this on chat-style reply composers, not on template editors like canned responses. */
+  /** When provided, Enter sends by default (Shift+Enter still inserts a newline) — pass this on chat-style reply composers, not on template editors like canned responses. See `sendOnEnter` to make that opt-out. */
   onSubmit?: () => void;
   placeholder?: string;
   ref?: Ref<RichTextEditorHandle>;
+  /** When `onSubmit` is provided and this is false, Enter never submits — both Enter and Shift+Enter insert a newline, and the composer's own send control must be used instead. Only meaningful alongside `onSubmit`. Defaults to true. */
+  sendOnEnter?: boolean;
   /** Shows a "Style as button" checkbox in the link popover. Only meaningful for
    * admin email template bodies, whose HTML goes through
    * `styleCustomEmailBody()` — the one place `class="cta-button"` is read. */
@@ -470,6 +473,7 @@ export function RichTextEditor({
   onBlur,
   onFocus,
   onSubmit,
+  sendOnEnter = true,
   placeholder = "Write a reply…",
   disabled = false,
   tone = "default",
@@ -518,9 +522,16 @@ export function RichTextEditor({
         if (event.key !== "Enter" || event.isComposing) {
           return false;
         }
-        // Plain Enter sends the message (below), so Shift+Enter stands in
-        // for a normal editor's Enter here.
-        if (event.shiftKey) {
+        const enterSubmits = shouldSendOnEnter({
+          hasSubmit: Boolean(onSubmit),
+          isComposing: event.isComposing,
+          sendOnEnter,
+          shiftKey: event.shiftKey,
+        });
+        // Plain Enter sends the message when enabled (below), so Shift+Enter
+        // — or plain Enter, when the user has turned send-on-Enter off —
+        // stands in for a normal editor's Enter here.
+        if (!enterSubmits) {
           if (!onSubmit || !currentEditor) {
             return false;
           }
@@ -542,14 +553,11 @@ export function RichTextEditor({
             () => commands.splitBlock(),
           ]);
         }
-        if (!onSubmit) {
-          return false;
-        }
         // Let the "/" command menu handle Enter (select item) while it's open.
         if (SuggestionPluginKey.getState(view.state)?.active) {
           return false;
         }
-        onSubmit();
+        onSubmit?.();
         return true;
       },
       handlePaste: (_view, event) => {
