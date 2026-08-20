@@ -96,6 +96,7 @@ export function TicketsTable({
   isAdmin,
   columnPrefs,
   listQuery,
+  showSlaAndOverdue,
 }: {
   rows: Row[];
   statusMap: Record<string, ColorRow | undefined>;
@@ -110,6 +111,9 @@ export function TicketsTable({
    * carried onto each row's ticket link so the detail page's Previous/Next
    * buttons can traverse this same filtered result set. */
   listQuery: string;
+  /** The agent's "Show SLA & Overdue" preference (lib/sla-display-pref.ts) —
+   * off shows only the waiting time, not SLA/overdue badges. */
+  showSlaAndOverdue: boolean;
 }) {
   const visibleColumns = columnPrefs.filter((c) => c.visible);
   const router = useRouter();
@@ -436,6 +440,10 @@ export function TicketsTable({
                           order={activeOrder}
                         />
                       </button>
+                    ) : c.id === "sla" && !showSlaAndOverdue ? (
+                      // Only the waiting-time badge shows in this column
+                      // while the pref is off — "SLA" would be misleading.
+                      "Waiting Time"
                     ) : (
                       COLUMN_META[c.id].label
                     )}
@@ -459,6 +467,7 @@ export function TicketsTable({
                   priorityMap={priorityMap}
                   row={row}
                   selected={selected.has(row.id)}
+                  showSlaAndOverdue={showSlaAndOverdue}
                   statuses={statuses}
                   statusMap={statusMap}
                   visibleColumns={visibleColumns}

@@ -59,7 +59,7 @@ A table of the 10 most recently updated open tickets, for quick access:
 | Assigned To | Agent name or "Unassigned" |
 | Waiting | Time since `createdAt` (e.g. "2h", "3 days") |
 
-Each row is clickable → `/tickets/{ticketId}`.
+Each row is clickable → `/tickets/{ticketNumber}`.
 
 ---
 

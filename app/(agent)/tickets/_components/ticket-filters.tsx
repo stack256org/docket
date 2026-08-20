@@ -34,6 +34,7 @@ import type {
   TicketStatus,
 } from "@/lib/ticket-config";
 import { cn } from "@/lib/utils";
+import { TicketDateQuickFilter } from "./ticket-date-quick-filter";
 
 const RANGE_OPTIONS = [
   { value: "all", label: "All Time" },
@@ -203,7 +204,11 @@ export function TicketFilters({
 
   return (
     <div className="space-y-3">
-      <div className="flex gap-3">
+      <div className="flex items-center gap-3">
+        {/* Quick day-range filter — shares the `range` param with the Date
+            Range option below (see lib/tickets-list-query.ts). */}
+        <TicketDateQuickFilter />
+
         {/* Search */}
         <div className="relative flex-1 min-w-0">
           {/* z-10: daisyUI's `input` is itself `position: relative` with an

@@ -57,6 +57,13 @@
       "when": 1787129062146,
       "tag": "0007_secret_stone_men",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1787142405547,
+      "tag": "0008_rich_king_cobra",
+      "breakpoints": true
     }
   ]
 }

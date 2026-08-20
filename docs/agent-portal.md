@@ -14,7 +14,7 @@ All routes under `/(agent)/` require a valid session.
 |-------|-------------|
 | `/dashboard` | Stats overview |
 | `/tickets` | All tickets list |
-| `/tickets/{ticketId}` | Ticket detail + management |
+| `/tickets/{ticketNumber}` | Ticket detail + management |
 
 ---
 
@@ -58,7 +58,7 @@ Filters are combinable. Active filters are shown as removable chips above the li
 
 ---
 
-## 2. Ticket Detail (`/tickets/{ticketId}`)
+## 2. Ticket Detail (`/tickets/{ticketNumber}`)
 
 The full ticket view for agents. Split into two panels:
 

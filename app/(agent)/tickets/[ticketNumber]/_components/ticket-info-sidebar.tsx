@@ -63,6 +63,10 @@ interface Props {
   customFields: CustomFieldWithValue[];
   isAdmin?: boolean;
   priorities: TicketPriority[];
+  /** The agent's "Show SLA & Overdue" preference (lib/sla-display-pref.ts) —
+   * off shows only the waiting time, not SLA/overdue badges, same as the
+   * ticket list's SLA column. */
+  showSlaAndOverdue: boolean;
   slaSnapshot: SlaSnapshot;
   statuses: TicketStatus[];
   tags: Array<{ id: string; name: string }>;
@@ -92,6 +96,7 @@ export function TicketInfoSidebar({
   statuses,
   categories,
   priorities,
+  showSlaAndOverdue,
   slaSnapshot,
   tags,
   customFields,
@@ -416,41 +421,47 @@ export function TicketInfoSidebar({
         {error && <p className="text-xs text-red-600">{error}</p>}
       </SidebarCard>
 
-      {/* SLA */}
+      {/* SLA / Waiting Time — "SLA" only when SLA & overdue info is shown;
+          otherwise just the waiting-time badge, same as the ticket list's
+          SLA column (see lib/sla-display-pref.ts). */}
       <SidebarCard
         contentClassName="space-y-3"
-        title="SLA"
+        title={showSlaAndOverdue ? "SLA" : "Waiting Time"}
         {...accordionProps("sla")}
       >
         <div className="flex items-center justify-between gap-2">
           <SlaWaitBadge snapshot={slaSnapshot} />
-          <SlaOutcomeBadge className="shrink-0" snapshot={slaSnapshot} />
-        </div>
-        <div className="space-y-1.5">
-          {slaSnapshot.firstResponse && (
-            <SlaMetricBadge
-              className="w-full justify-start"
-              metric={slaSnapshot.firstResponse}
-            />
-          )}
-          {slaSnapshot.nextResponse && (
-            <SlaMetricBadge
-              className="w-full justify-start"
-              metric={slaSnapshot.nextResponse}
-            />
-          )}
-          {slaSnapshot.resolution && (
-            <SlaMetricBadge
-              className="w-full justify-start"
-              metric={slaSnapshot.resolution}
-            />
-          )}
-          {!slaSnapshot.firstResponse && (
-            <p className="text-xs text-base-content-muted">
-              No SLA policy configured.
-            </p>
+          {showSlaAndOverdue && (
+            <SlaOutcomeBadge className="shrink-0" snapshot={slaSnapshot} />
           )}
         </div>
+        {showSlaAndOverdue && (
+          <div className="space-y-1.5">
+            {slaSnapshot.firstResponse && (
+              <SlaMetricBadge
+                className="w-full justify-start"
+                metric={slaSnapshot.firstResponse}
+              />
+            )}
+            {slaSnapshot.nextResponse && (
+              <SlaMetricBadge
+                className="w-full justify-start"
+                metric={slaSnapshot.nextResponse}
+              />
+            )}
+            {slaSnapshot.resolution && (
+              <SlaMetricBadge
+                className="w-full justify-start"
+                metric={slaSnapshot.resolution}
+              />
+            )}
+            {!slaSnapshot.firstResponse && (
+              <p className="text-xs text-base-content-muted">
+                No SLA policy configured.
+              </p>
+            )}
+          </div>
+        )}
       </SidebarCard>
 
       {/* Tags */}
