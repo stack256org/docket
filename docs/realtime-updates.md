@@ -15,7 +15,7 @@ the page to see new data.
 | Page | Event | Trigger |
 |------|-------|---------|
 | `/tickets` (agent list) | `ticket.created` | A customer submits a new ticket |
-| `/tickets/{id}` (agent detail) | `comment.created` | Anyone posts a new comment on that ticket — customer reply, agent reply, or internal note |
+| `/tickets/{ticketNumber}` (agent detail) | `comment.created` | Anyone posts a new comment on that ticket — customer reply, agent reply, or internal note |
 | `/ticket/{id}` (customer detail) | `comment.created` | Anyone posts a new **public** comment on that ticket (internal notes are still delivered — see Security below — but the page only re-fetches comments the customer API already excludes internal notes from) |
 
 All are soft `router.refresh()` calls (a Next.js RSC refetch, not a hard
@@ -65,7 +65,7 @@ needed for existing installs.
 | Agent client | `lib/pusher-browser.ts`'s `getPusherClient()` — session-authenticated, cached singleton per tab |
 | Customer client | `lib/pusher-browser.ts`'s `getPusherClientForCustomer(token)` — token-authenticated, a fresh (uncached) client per mount, since a customer can navigate between sibling tickets each with a different token |
 | Agent list subscriber | `components/agent/tickets-list-realtime.tsx`, mounted in `app/(agent)/tickets/page.tsx` |
-| Agent detail subscriber | `components/agent/ticket-detail-realtime.tsx`, mounted in `app/(agent)/tickets/[ticketId]/page.tsx` |
+| Agent detail subscriber | `components/agent/ticket-detail-realtime.tsx`, mounted in `app/(agent)/tickets/[ticketNumber]/page.tsx` |
 | Customer detail subscriber | `app/(customer)/ticket/[ticketId]/ticket-realtime.tsx`, mounted in the customer ticket page |
 | Publish call sites | `POST /api/tickets` (ticket creation) and `POST /api/tickets/[id]/comments` (any comment) |
 

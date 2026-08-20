@@ -69,6 +69,9 @@ interface Props {
   priorityMap: Record<string, ColorRow | undefined>;
   row: Row;
   selected: boolean;
+  /** The agent's "Show SLA & Overdue" preference — off shows only the
+   * waiting time (SlaWaitBadge), not SLA/overdue badges. */
+  showSlaAndOverdue: boolean;
   statuses: TicketStatus[];
   statusMap: Record<string, ColorRow | undefined>;
   visibleColumns: ColumnPref[];
@@ -86,6 +89,7 @@ export function TicketRow({
   selected,
   onRequestClose,
   onToggleSelect,
+  showSlaAndOverdue,
   visibleColumns,
   listQuery,
 }: Props) {
@@ -214,6 +218,12 @@ export function TicketRow({
           </Select>
         );
       case "sla": {
+        // "Show SLA & Overdue" off: the waiting time alone (SlaWaitBadge) is
+        // never SLA-policy-dependent, so it stays visible either way — only
+        // the SLA/overdue-specific badges below it are gated on the pref.
+        if (!showSlaAndOverdue) {
+          return <SlaWaitBadge compact snapshot={row.slaSnapshot} />;
+        }
         // A closed ticket has no countdown left — show the final verdict
         // instead of the most-urgent live metric.
         if (row.slaSnapshot.waitState === "resolved") {
@@ -319,7 +329,7 @@ export function TicketRow({
       <td className="px-4 py-3">
         <Link
           className="text-[13px] font-medium text-base-content hover:underline line-clamp-2"
-          href={`/tickets/${row.id}${listQuery}`}
+          href={`/tickets/${row.ticketNumber}${listQuery}`}
           title={row.subject}
         >
           {row.subject}

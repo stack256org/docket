@@ -116,7 +116,7 @@ same anonymization, so both erasure paths behave identically.
 
 ---
 
-## 2. Delete Ticket (Spam) (`/tickets/{ticketId}`)
+## 2. Delete Ticket (Spam) (`/tickets/{ticketNumber}`)
 
 Admins see a "Delete Ticket" button in the ticket detail sidebar that agents do not see.
 

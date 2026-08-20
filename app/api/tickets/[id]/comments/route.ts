@@ -437,7 +437,7 @@ export async function POST(
       await publishPushToUsers(recipientIds, {
         title: notifTitle,
         body: contentText.slice(0, 120),
-        deepLink: `${env.NEXT_PUBLIC_APP_URL}/tickets/${ticketId}`,
+        deepLink: `${env.NEXT_PUBLIC_APP_URL}/tickets/${ticketData.ticketNumber}`,
       }).catch((err) => console.error("[push.customer_replied]", err));
     }
 

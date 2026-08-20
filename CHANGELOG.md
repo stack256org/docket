@@ -9,6 +9,8 @@ Anything needing manual work on upgrade is called out under **Upgrade notes**.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-20
+
 ### Added
 
 - Zammad migration: a **sync mode** (`pnpm migrate:zammad:sync`, or
@@ -20,6 +22,21 @@ Anything needing manual work on upgrade is called out under **Upgrade notes**.
   appending only the articles it hasn't copied before. It is additive: nothing
   in Docket is deleted, and work done by agents inside Docket survives.
   See `docs/deployment-and-zammad-migration.md` §7.4.
+- A per-agent **"Show SLA & Overdue" preference** on the Settings page. Off,
+  the ticket list's SLA column collapses to just the waiting-time badge
+  instead of the full SLA/overdue badges. Stored in
+  `user_ticket_table_prefs.show_sla_and_overdue`.
+- **Queue tabs** ("Awaiting Our Reply" / "All Open Tickets" / "All Tickets")
+  and a **quick date-range filter** ("Today" / "7d" / "30d" / "90d" / "All
+  time") above the ticket list, both writing the same `view`/`range` query
+  params the Filters popover already used.
+
+### Changed
+
+- Ticket detail URLs now use the ticket number instead of the internal id
+  (`/tickets/{ticketNumber}` instead of `/tickets/{id}`) — the internal id is
+  no longer exposed in the URL. Old links using the internal id no longer
+  resolve.
 
 ## [0.3.1] - 2026-08-19
 

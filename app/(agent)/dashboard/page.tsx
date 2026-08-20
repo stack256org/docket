@@ -331,7 +331,7 @@ export default async function DashboardPage() {
                     <td className="px-6 py-3 max-w-xs">
                       <Link
                         className="text-base-content font-medium hover:underline truncate block"
-                        href={`/tickets/${t.id}`}
+                        href={`/tickets/${t.ticketNumber}`}
                       >
                         {t.subject}
                       </Link>
@@ -355,7 +355,7 @@ export default async function DashboardPage() {
                       <Link
                         aria-label={`View ticket #${t.ticketNumber}`}
                         className="inline-flex size-7 items-center justify-center rounded-md text-base-content-muted hover:text-base-content hover:bg-base-300 transition-colors"
-                        href={`/tickets/${t.id}`}
+                        href={`/tickets/${t.ticketNumber}`}
                       >
                         <EyeIcon className="size-4" />
                       </Link>
@@ -431,7 +431,7 @@ export default async function DashboardPage() {
                     <td className="px-6 py-3 max-w-xs">
                       <Link
                         className="text-base-content font-medium hover:underline truncate block"
-                        href={`/tickets/${t.id}`}
+                        href={`/tickets/${t.ticketNumber}`}
                       >
                         {t.subject}
                       </Link>
@@ -455,7 +455,7 @@ export default async function DashboardPage() {
                       <Link
                         aria-label={`View ticket #${t.ticketNumber}`}
                         className="inline-flex size-7 items-center justify-center rounded-md text-base-content-muted hover:text-base-content hover:bg-base-300 transition-colors"
-                        href={`/tickets/${t.id}`}
+                        href={`/tickets/${t.ticketNumber}`}
                       >
                         <EyeIcon className="size-4" />
                       </Link>

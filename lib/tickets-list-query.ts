@@ -8,6 +8,7 @@ import {
   lte,
   or,
   type SQL,
+  sql,
 } from "drizzle-orm";
 import { customers } from "@/db/schema/customers";
 import { tickets } from "@/db/schema/tickets";
@@ -28,6 +29,36 @@ export interface TicketListSearchParams {
   sort?: string;
   status?: string;
   to?: string;
+  /** The active queue tab — see ticketMatchesView(). Unset = the unrestricted
+   * list (today's default behavior), unaffected by this filter. */
+  view?: string;
+}
+
+export type TicketView = "awaiting" | "open";
+
+/** Parses the `view` query param into a known tab, or null when unset/unrecognized. */
+export function parseTicketView(
+  params: Pick<TicketListSearchParams, "view">
+): TicketView | null {
+  return params.view === "awaiting" || params.view === "open"
+    ? params.view
+    : null;
+}
+
+/** Whether `ticket` belongs to the given queue tab — the same rule
+ * buildTicketsWhereClause applies via SQL, exposed standalone so it's unit
+ * testable without a database. "open" = any non-closed status. "awaiting" =
+ * open AND currently awaiting an agent reply. The open-status check also
+ * applies to "awaiting": closing a ticket through a generic status-change
+ * route (PATCH /api/tickets/[id], bulk) only sets closedAt, not
+ * awaitingReply, so a closed ticket can still have awaitingReply = true. */
+export function ticketMatchesView(
+  view: TicketView,
+  ticket: { awaitingReply: boolean; status: string },
+  openStatusSlugs: string[]
+): boolean {
+  const isOpen = openStatusSlugs.includes(ticket.status);
+  return view === "awaiting" ? isOpen && ticket.awaitingReply : isOpen;
 }
 
 export const SORT_COLUMNS = {
@@ -39,15 +70,21 @@ export type SortKey = keyof typeof SORT_COLUMNS;
 const RANGE_DAYS: Record<string, number> = {
   last_day: 1,
   last_week: 7,
+  // "Today/7d/30d/90d/All time" quick-filter row (TicketDateQuickFilter) —
+  // additive slugs alongside the Filters popover's own Date Range options
+  // above; both write the same `range` param via getRangeStart().
+  "7d": 7,
+  "30d": 30,
+  "90d": 90,
 };
 
 function getRangeStart(range: string | null): Date | null {
   if (!range) {
     return null;
   }
-  if (range === "this_month") {
+  if (range === "this_month" || range === "today") {
     const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1);
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
   }
   const days = RANGE_DAYS[range];
   if (!days) {
@@ -70,10 +107,13 @@ export function parseTicketListSort(params: TicketListSearchParams): {
 
 /** The tickets list page's WHERE semantics, in one place so the detail page's
  * prev/next lookup filters identically. Search touches `customers`, so callers
- * must innerJoin it on tickets.customerId before applying this clause. */
+ * must innerJoin it on tickets.customerId before applying this clause.
+ * `openStatusSlugs` is only consulted when `params.view` is set — pass the
+ * result of `getTicketStatuses().filter(s => !s.isClosedState)`. */
 export function buildTicketsWhereClause(
   params: TicketListSearchParams,
-  agentId: string
+  agentId: string,
+  openStatusSlugs: string[] = []
 ): SQL | undefined {
   const search = params.q?.trim() ?? "";
   const statusFilter =
@@ -142,6 +182,19 @@ export function buildTicketsWhereClause(
   }
   if (awaitingFilter) {
     conditions.push(eq(tickets.awaitingReply, true));
+  }
+  const view = parseTicketView(params);
+  if (view) {
+    // Mirrors ticketMatchesView(): both tabs require a non-closed status;
+    // "awaiting" additionally requires the awaitingReply flag.
+    conditions.push(
+      openStatusSlugs.length > 0
+        ? inArray(tickets.status, openStatusSlugs)
+        : sql`false`
+    );
+    if (view === "awaiting") {
+      conditions.push(eq(tickets.awaitingReply, true));
+    }
   }
   if (mineFilter) {
     conditions.push(eq(tickets.assignedAgentId, agentId));

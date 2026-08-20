@@ -228,7 +228,7 @@ function TicketList({
                     ? "text-base-content-muted"
                     : "text-base-content"
                 }`}
-                href={`/tickets/${t.id}`}
+                href={`/tickets/${t.ticketNumber}`}
                 title={t.subject}
               >
                 {t.subject}

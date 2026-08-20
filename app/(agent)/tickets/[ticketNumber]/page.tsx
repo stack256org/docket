@@ -44,14 +44,17 @@ import {
   type TicketListSearchParams,
   toQueryString,
 } from "@/lib/tickets-list-query";
-import { getSendReplyOnEnterPref } from "@/lib/user-preferences";
+import {
+  getSendReplyOnEnterPref,
+  getShowSlaAndOverduePref,
+} from "@/lib/user-preferences";
 import { getInitials } from "@/lib/utils";
 import { AgentReplyForm } from "./_components/agent-reply-form";
 import { CustomerProfilePopover } from "./_components/customer-profile-popover";
 import { TicketInfoSidebar } from "./_components/ticket-info-sidebar";
 
 interface Props {
-  params: Promise<{ ticketId: string }>;
+  params: Promise<{ ticketNumber: string }>;
   searchParams: Promise<TicketListSearchParams>;
 }
 
@@ -62,14 +65,15 @@ const assignedAgent = alias(user, "assigned_agent");
 /** The neighbor strictly before/after `current` within the same filtered,
  * sorted result set the agent came from — a keyset ("seek") comparison
  * against (sortKey, ticketNumber) rather than loading the whole list, so
- * this stays cheap regardless of list size and works across page boundaries. */
-async function getAdjacentTicketId(
+ * this stays cheap regardless of list size and works across page boundaries.
+ * Returns the neighbor's ticketNumber (the URL segment), not its internal id. */
+async function getAdjacentTicketNumber(
   direction: "prev" | "next",
   whereClause: ReturnType<typeof buildTicketsWhereClause>,
   sortKey: SortKey,
   sortOrder: "asc" | "desc",
   current: { ticketNumber: number; updatedAt: Date }
-): Promise<string | null> {
+): Promise<number | null> {
   const wantsGreater =
     direction === "next" ? sortOrder === "asc" : sortOrder === "desc";
 
@@ -94,7 +98,7 @@ async function getAdjacentTicketId(
   const resultOrder = wantsGreater ? asc : desc;
 
   const [row] = await db
-    .select({ id: tickets.id })
+    .select({ ticketNumber: tickets.ticketNumber })
     .from(tickets)
     .innerJoin(customers, eq(tickets.customerId, customers.id))
     .where(where)
@@ -105,15 +109,15 @@ async function getAdjacentTicketId(
     )
     .limit(1);
 
-  return row?.id ?? null;
+  return row?.ticketNumber ?? null;
 }
 
 function TicketNavLink({
-  ticketId,
+  ticketNumber,
   listQuery,
   direction,
 }: {
-  ticketId: string | null;
+  ticketNumber: number | null;
   listQuery: string;
   direction: "prev" | "next";
 }) {
@@ -122,7 +126,7 @@ function TicketNavLink({
   const className =
     "inline-flex size-7 items-center justify-center rounded-md border transition-colors";
 
-  if (!ticketId) {
+  if (!ticketNumber) {
     return (
       <button
         aria-label={label}
@@ -140,7 +144,7 @@ function TicketNavLink({
     <Link
       aria-label={label}
       className={`${className} border-base-300 text-base-content hover:bg-base-300`}
-      href={`/tickets/${ticketId}${listQuery}`}
+      href={`/tickets/${ticketNumber}${listQuery}`}
       title={label}
     >
       <Icon className="size-4" />
@@ -152,9 +156,17 @@ export default async function AgentTicketDetailPage({
   params,
   searchParams,
 }: Props) {
-  const { ticketId } = await params;
+  const { ticketNumber: ticketNumberParam } = await params;
   const listParams = await searchParams;
   const session = await requireAgent();
+
+  // The URL segment is the ticket number (e.g. /tickets/929), not the
+  // internal id — never expose the internal id in the URL. A malformed
+  // segment can't match any row, so it 404s the same way an unknown number does.
+  const ticketNumber = Number.parseInt(ticketNumberParam, 10);
+  if (!Number.isInteger(ticketNumber) || ticketNumber <= 0) {
+    notFound();
+  }
 
   const [ticket] = await db
     .select({
@@ -184,7 +196,7 @@ export default async function AgentTicketDetailPage({
     .from(tickets)
     .innerJoin(customers, eq(tickets.customerId, customers.id))
     .leftJoin(assignedAgent, eq(tickets.assignedAgentId, assignedAgent.id))
-    .where(eq(tickets.id, ticketId))
+    .where(eq(tickets.ticketNumber, ticketNumber))
     .limit(1);
 
   if (!ticket) {
@@ -192,33 +204,56 @@ export default async function AgentTicketDetailPage({
   }
 
   // Reconstructs the same filtered/sorted result set the agent came from
-  // (see lib/tickets-list-query.ts) so Previous/Next stay within that queue.
-  const listWhereClause = buildTicketsWhereClause(listParams, session.id);
+  // (see lib/tickets-list-query.ts) so Previous/Next stay within that queue —
+  // including the queue tab (view=awaiting|open), which needs the current
+  // non-closed status set fetched up front rather than inside the Promise.all
+  // below.
+  const statuses = await getTicketStatuses();
+  const openStatusSlugs = statuses
+    .filter((s) => !s.isClosedState)
+    .map((s) => s.slug);
+  const listWhereClause = buildTicketsWhereClause(
+    listParams,
+    session.id,
+    openStatusSlugs
+  );
   const { sortKey, sortOrder } = parseTicketListSort(listParams);
   const listQuery = toQueryString(listParams);
 
   const [
-    statuses,
     categories,
     priorities,
     slaPolicies,
     cannedResponses,
     tags,
     customFields,
-    prevTicketId,
-    nextTicketId,
+    prevTicketNumber,
+    nextTicketNumber,
     sendReplyOnEnter,
+    showSlaAndOverdue,
   ] = await Promise.all([
-    getTicketStatuses(),
     getTicketCategories(),
     getTicketPriorities(),
     getSlaPolicies(),
     getCannedResponses(),
-    getTicketTags(ticketId),
-    getCustomFieldValues(ticketId),
-    getAdjacentTicketId("prev", listWhereClause, sortKey, sortOrder, ticket),
-    getAdjacentTicketId("next", listWhereClause, sortKey, sortOrder, ticket),
+    getTicketTags(ticket.id),
+    getCustomFieldValues(ticket.id),
+    getAdjacentTicketNumber(
+      "prev",
+      listWhereClause,
+      sortKey,
+      sortOrder,
+      ticket
+    ),
+    getAdjacentTicketNumber(
+      "next",
+      listWhereClause,
+      sortKey,
+      sortOrder,
+      ticket
+    ),
     getSendReplyOnEnterPref(session.id),
+    getShowSlaAndOverduePref(session.id),
   ]);
 
   const statusMap = Object.fromEntries(statuses.map((s) => [s.slug, s]));
@@ -228,13 +263,13 @@ export default async function AgentTicketDetailPage({
   const comments = await db
     .select()
     .from(ticketComments)
-    .where(eq(ticketComments.ticketId, ticketId))
+    .where(eq(ticketComments.ticketId, ticket.id))
     .orderBy(asc(ticketComments.createdAt));
 
   const attachments = await db
     .select()
     .from(ticketAttachments)
-    .where(eq(ticketAttachments.ticketId, ticketId));
+    .where(eq(ticketAttachments.ticketId, ticket.id));
 
   const ticketLevelAttachments = attachments.filter((a) => !a.commentId);
   const attachmentsByComment = new Map<string, typeof attachments>();
@@ -250,7 +285,7 @@ export default async function AgentTicketDetailPage({
   const activity = await db
     .select()
     .from(ticketActivity)
-    .where(eq(ticketActivity.ticketId, ticketId))
+    .where(eq(ticketActivity.ticketId, ticket.id))
     .orderBy(desc(ticketActivity.createdAt));
 
   // Agents for assignment dropdown
@@ -294,12 +329,12 @@ export default async function AgentTicketDetailPage({
             <TicketNavLink
               direction="prev"
               listQuery={listQuery}
-              ticketId={prevTicketId}
+              ticketNumber={prevTicketNumber}
             />
             <TicketNavLink
               direction="next"
               listQuery={listQuery}
-              ticketId={nextTicketId}
+              ticketNumber={nextTicketNumber}
             />
           </div>
           <span
@@ -519,6 +554,7 @@ export default async function AgentTicketDetailPage({
             customFields={customFields}
             isAdmin={session.role === ADMIN_ROLE}
             priorities={priorities}
+            showSlaAndOverdue={showSlaAndOverdue}
             slaSnapshot={slaSnapshot}
             statuses={statuses}
             tags={tags}

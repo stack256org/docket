@@ -38,10 +38,14 @@ import {
   type TicketListSearchParams,
 } from "@/lib/tickets-list-query";
 import type { ColumnPref } from "@/lib/tickets-table-columns";
-import { getTicketTableColumnPrefs } from "@/lib/user-preferences";
+import {
+  getShowSlaAndOverduePref,
+  getTicketTableColumnPrefs,
+} from "@/lib/user-preferences";
 import { cn, skeletonKeys } from "@/lib/utils";
 import { ColumnSettingsDialog } from "./_components/column-settings-dialog";
 import { TicketFilters } from "./_components/ticket-filters";
+import { TicketViewTabs } from "./_components/ticket-view-tabs";
 import { TicketsTable } from "./_components/tickets-table";
 
 export const metadata = { title: "All Tickets" };
@@ -61,27 +65,50 @@ export default async function TicketsPage({ searchParams }: Props) {
   const params = await searchParams;
 
   const session = await requireAgent();
-  const [statuses, categories, priorities, columnPrefs, slaPolicies, agents] =
-    await Promise.all([
-      getTicketStatuses(),
-      getTicketCategories(),
-      getTicketPriorities(),
-      getTicketTableColumnPrefs(session.id),
-      getSlaPolicies(),
-      db
-        .select({ id: user.id, name: user.name, email: user.email })
-        .from(user)
-        .where(
-          and(
-            eq(user.banned, false),
-            or(eq(user.role, AGENT_ROLE), eq(user.role, ADMIN_ROLE))
-          )
-        ),
-    ]);
+  const [
+    statuses,
+    categories,
+    priorities,
+    columnPrefs,
+    showSlaAndOverdue,
+    slaPolicies,
+    agents,
+  ] = await Promise.all([
+    getTicketStatuses(),
+    getTicketCategories(),
+    getTicketPriorities(),
+    getTicketTableColumnPrefs(session.id),
+    getShowSlaAndOverduePref(session.id),
+    getSlaPolicies(),
+    db
+      .select({ id: user.id, name: user.name, email: user.email })
+      .from(user)
+      .where(
+        and(
+          eq(user.banned, false),
+          or(eq(user.role, AGENT_ROLE), eq(user.role, ADMIN_ROLE))
+        )
+      ),
+  ]);
 
   return (
     <div className="p-6 space-y-5">
       <TicketsListRealtime />
+
+      {/* Its own Suspense boundary (separate from the table below) so the tab
+          bar can stream in above the search/filter row, which needs no async
+          ticket data and renders immediately. */}
+      <Suspense
+        fallback={<TicketViewTabsSkeleton />}
+        key={`tabs-${JSON.stringify(params)}`}
+      >
+        <TicketViewTabsResults
+          agentId={session.id}
+          params={params}
+          statuses={statuses}
+        />
+      </Suspense>
+
       <TicketFilters
         agents={agents}
         categories={categories}
@@ -103,10 +130,80 @@ export default async function TicketsPage({ searchParams }: Props) {
           isAdmin={session.role === ADMIN_ROLE}
           params={params}
           priorities={priorities}
+          showSlaAndOverdue={showSlaAndOverdue}
           slaPolicies={slaPolicies}
           statuses={statuses}
         />
       </Suspense>
+    </div>
+  );
+}
+
+/** Powers just the tab bar's counts — split out from TicketsResults so the
+ * tab bar can render (and stream) above the search/filter row, which needs
+ * no async data of its own. See buildTicketsWhereClause's `view` handling in
+ * lib/tickets-list-query.ts for what each tab counts. */
+async function TicketViewTabsResults({
+  params,
+  agentId,
+  statuses,
+}: {
+  params: SearchParams;
+  agentId: string;
+  statuses: TicketStatus[];
+}) {
+  const openStatusSlugs = statuses
+    .filter((s) => !s.isClosedState)
+    .map((s) => s.slug);
+
+  const awaitingWhereClause = buildTicketsWhereClause(
+    { ...params, view: "awaiting" },
+    agentId,
+    openStatusSlugs
+  );
+  const openWhereClause = buildTicketsWhereClause(
+    { ...params, view: "open" },
+    agentId,
+    openStatusSlugs
+  );
+  const allWhereClause = buildTicketsWhereClause(
+    { ...params, view: undefined },
+    agentId,
+    openStatusSlugs
+  );
+
+  const countQuery = (where: typeof awaitingWhereClause) =>
+    db
+      .select({ total: count() })
+      .from(tickets)
+      .innerJoin(customers, eq(tickets.customerId, customers.id))
+      .where(where);
+
+  const [
+    [{ total: awaitingCount }],
+    [{ total: openCount }],
+    [{ total: allCount }],
+  ] = await Promise.all([
+    countQuery(awaitingWhereClause),
+    countQuery(openWhereClause),
+    countQuery(allWhereClause),
+  ]);
+
+  return (
+    <TicketViewTabs
+      allCount={allCount}
+      awaitingCount={awaitingCount}
+      openCount={openCount}
+    />
+  );
+}
+
+function TicketViewTabsSkeleton() {
+  return (
+    <div className="flex gap-6 border-b border-base-300 pb-2.5">
+      {skeletonKeys(3).map((k) => (
+        <Skeleton className="h-4 w-32" key={k} />
+      ))}
     </div>
   );
 }
@@ -121,6 +218,7 @@ async function TicketsResults({
   priorities,
   slaPolicies,
   columnPrefs,
+  showSlaAndOverdue,
 }: {
   params: SearchParams;
   agentId: string;
@@ -131,6 +229,7 @@ async function TicketsResults({
   priorities: TicketPriority[];
   slaPolicies: SlaPolicy[];
   columnPrefs: ColumnPref[];
+  showSlaAndOverdue: boolean;
 }) {
   const statusMap = Object.fromEntries(statuses.map((s) => [s.slug, s]));
   const categoryMap = Object.fromEntries(categories.map((c) => [c.slug, c]));
@@ -154,9 +253,14 @@ async function TicketsResults({
     params.range && params.range !== "all" ? params.range : null;
   const awaitingFilter = params.awaiting === "1";
   const mineFilter = params.mine === "1";
+  const viewFilter =
+    params.view === "awaiting" || params.view === "open" ? params.view : null;
   const { sortKey, sortOrder } = parseTicketListSort(params);
 
-  const whereClause = buildTicketsWhereClause(params, agentId);
+  const openStatusSlugs = statuses
+    .filter((s) => !s.isClosedState)
+    .map((s) => s.slug);
+  const whereClause = buildTicketsWhereClause(params, agentId, openStatusSlugs);
 
   const [{ total }] = await db
     .select({ total: count() })
@@ -264,6 +368,9 @@ async function TicketsResults({
     if (mineFilter) {
       qp.set("mine", "1");
     }
+    if (viewFilter) {
+      qp.set("view", viewFilter);
+    }
     if (sortKey !== "updatedAt") {
       qp.set("sort", sortKey);
     }
@@ -304,7 +411,7 @@ async function TicketsResults({
             No tickets found
           </p>
           <p className="text-sm text-base-content-muted mt-1">
-            {search || statusFilter || categoryFilter
+            {search || statusFilter || categoryFilter || viewFilter
               ? "Try adjusting your filters."
               : "Customers can submit tickets at your support portal."}
           </p>
@@ -320,6 +427,7 @@ async function TicketsResults({
             priorities={priorities}
             priorityMap={priorityMap}
             rows={rowsWithExtras}
+            showSlaAndOverdue={showSlaAndOverdue}
             statuses={statuses}
             statusMap={statusMap}
           />

@@ -158,8 +158,8 @@ export function NotificationBell({ userId }: { userId: string }) {
         body: JSON.stringify({ id: n.id }),
       }).catch(() => {});
     }
-    if (n.ticketId) {
-      router.push(`/tickets/${n.ticketId}`);
+    if (n.ticketNumber) {
+      router.push(`/tickets/${n.ticketNumber}`);
     }
   }
 

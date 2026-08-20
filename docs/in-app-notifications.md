@@ -50,7 +50,7 @@ Helpers live in `lib/notifications.ts` (`createNotifications`, `listNotification
 
 - Bell icon with an unread badge.
 - Polls `GET /api/notifications` every 30s for the unread count (and refreshes on open).
-- Clicking a notification marks it read and navigates to `/tickets/{ticketId}`.
+- Clicking a notification marks it read and navigates to `/tickets/{ticketNumber}`.
 - "Mark all read" clears the badge.
 
 A lightweight poll keeps the in-app bell simple and reliable for self-hosters. For
