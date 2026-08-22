@@ -139,11 +139,17 @@ export function AgentReplyForm({
         toast.error(msg);
         return;
       }
+      const wasInternal = isInternal;
       setContent("");
       setFiles([]);
+      // Reset to a public reply after every send — otherwise a toggle left on
+      // from a prior internal note silently keeps sending later replies as
+      // internal, so the customer never sees them and the ticket's waiting
+      // state never flips to "Waiting for customer".
+      setIsInternal(false);
       editorRef.current?.focus();
       toast.success(
-        isInternal ? "Internal note added." : "Reply sent to customer."
+        wasInternal ? "Internal note added." : "Reply sent to customer."
       );
       router.refresh();
       scrollChatToBottom();

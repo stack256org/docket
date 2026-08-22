@@ -111,6 +111,8 @@ Admin-defined extra structured fields — text, number, date, checkbox, or selec
 
 ## SLA
 
+**Currently hidden from the UI.** The admin policy manager, the per-agent "Show SLA & Overdue" setting, and the metric/outcome badges are all disabled — every page that computes an `SlaSnapshot` now resolves a `null` policy, so `firstResponse`/`nextResponse`/`resolution` are always `null` and nothing SLA-specific renders. The underlying code (this section, `lib/sla.ts`, `lib/sla-policies.ts`, `db/schema/sla-policies.ts`, `sla-policies-manager.tsx`, `sla-display-preferences-card.tsx`) is untouched and can be re-enabled by resolving a real policy again in `app/(agent)/tickets/page.tsx` and `app/(agent)/tickets/[ticketNumber]/page.tsx`, re-adding `SlaPoliciesManager` to the ticket-config page, and `SlaDisplayPreferencesCard` to settings. **Waiting Time** (below) is unaffected — it's derived from `tickets.awaitingReply`/`waitingSince` directly, not from a policy.
+
 SLA policies are **admin-configurable** — managed at `/admin/ticket-config`, stored in `sla_policies`. Each policy defines three targets in minutes: **First Response**, **Next Response**, and **Resolution**.
 
 ### Policy scoping and resolution

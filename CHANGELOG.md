@@ -9,6 +9,27 @@ Anything needing manual work on upgrade is called out under **Upgrade notes**.
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-08-22
+
+### Changed
+
+- SLA is hidden from the UI for now: the admin SLA policy manager, the
+  per-agent "Show SLA & Overdue" setting, and the SLA metric/outcome badges no
+  longer render anywhere. The underlying SLA code (`lib/sla.ts`,
+  `lib/sla-policies.ts`, the policy manager, the display-preference card) is
+  untouched, just commented out at each call site, and can be restored by
+  uncommenting. The **Waiting Time** badge ("Open for…" / "Waiting for
+  agent"/"Waiting for customer") is unaffected — it doesn't depend on an SLA
+  policy.
+
+### Fixed
+
+- The reply composer's "Internal note" toggle no longer stays on after
+  sending. Previously, if an agent left it on, their next reply — intended as
+  a public, customer-facing reply — would silently stay internal, so the
+  customer never saw it and the ticket's waiting state never flipped to
+  "Waiting for customer".
+
 ## [0.4.0] - 2026-08-20
 
 ### Added

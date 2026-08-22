@@ -17,11 +17,11 @@ import { requireAgent } from "@/lib/authz";
 import { db } from "@/lib/db";
 import { getPageNumbers } from "@/lib/pagination";
 import { computeSlaSnapshot } from "@/lib/sla";
-import {
-  getSlaPolicies,
-  resolveSlaPolicy,
-  type SlaPolicy,
-} from "@/lib/sla-policies";
+// import {
+//   getSlaPolicies,
+//   resolveSlaPolicy,
+//   type SlaPolicy,
+// } from "@/lib/sla-policies";
 import { getTicketTagsForTickets } from "@/lib/tags";
 import {
   getTicketCategories,
@@ -39,7 +39,7 @@ import {
 } from "@/lib/tickets-list-query";
 import type { ColumnPref } from "@/lib/tickets-table-columns";
 import {
-  getShowSlaAndOverduePref,
+  // getShowSlaAndOverduePref,
   getTicketTableColumnPrefs,
 } from "@/lib/user-preferences";
 import { cn, skeletonKeys } from "@/lib/utils";
@@ -65,21 +65,25 @@ export default async function TicketsPage({ searchParams }: Props) {
   const params = await searchParams;
 
   const session = await requireAgent();
+  // SLA is hidden for now (see docs/tickets.md § SLA) — the preference fetch
+  // and policy fetch below are commented out, not deleted, so the feature
+  // can be restored by uncommenting.
+  const showSlaAndOverdue = false;
   const [
     statuses,
     categories,
     priorities,
     columnPrefs,
-    showSlaAndOverdue,
-    slaPolicies,
+    // showSlaAndOverdue,
+    // slaPolicies,
     agents,
   ] = await Promise.all([
     getTicketStatuses(),
     getTicketCategories(),
     getTicketPriorities(),
     getTicketTableColumnPrefs(session.id),
-    getShowSlaAndOverduePref(session.id),
-    getSlaPolicies(),
+    // getShowSlaAndOverduePref(session.id),
+    // getSlaPolicies(),
     db
       .select({ id: user.id, name: user.name, email: user.email })
       .from(user)
@@ -131,7 +135,7 @@ export default async function TicketsPage({ searchParams }: Props) {
           params={params}
           priorities={priorities}
           showSlaAndOverdue={showSlaAndOverdue}
-          slaPolicies={slaPolicies}
+          // slaPolicies={slaPolicies}
           statuses={statuses}
         />
       </Suspense>
@@ -216,7 +220,7 @@ async function TicketsResults({
   statuses,
   categories,
   priorities,
-  slaPolicies,
+  // slaPolicies,
   columnPrefs,
   showSlaAndOverdue,
 }: {
@@ -227,7 +231,7 @@ async function TicketsResults({
   statuses: TicketStatus[];
   categories: TicketCategory[];
   priorities: TicketPriority[];
-  slaPolicies: SlaPolicy[];
+  // slaPolicies: SlaPolicy[];
   columnPrefs: ColumnPref[];
   showSlaAndOverdue: boolean;
 }) {
@@ -329,13 +333,16 @@ async function TicketsResults({
   );
 
   const slaNow = new Date();
+  // Waiting Time still needs the base snapshot (waitState/waitingSince/"Open
+  // for"); SLA is hidden, so `null` is passed instead of a resolved policy.
   const rowsWithExtras = rows.map((r) => ({
     ...r,
     tags: tagsByTicket[r.id] ?? [],
     updatedByName: updatedByTicket[r.id] ?? null,
     slaSnapshot: computeSlaSnapshot(
       r,
-      resolveSlaPolicy(slaPolicies, r.category, r.priority),
+      // resolveSlaPolicy(slaPolicies, r.category, r.priority),
+      null,
       slaNow
     ),
   }));
