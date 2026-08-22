@@ -28,7 +28,7 @@ import { getCustomFieldValues } from "@/lib/custom-fields";
 import { db } from "@/lib/db";
 import { isRichTextEmpty } from "@/lib/rich-text";
 import { computeSlaSnapshot } from "@/lib/sla";
-import { getSlaPolicies, resolveSlaPolicy } from "@/lib/sla-policies";
+// import { getSlaPolicies, resolveSlaPolicy } from "@/lib/sla-policies";
 import { storage } from "@/lib/storage";
 import { getTicketTags } from "@/lib/tags";
 import {
@@ -46,7 +46,7 @@ import {
 } from "@/lib/tickets-list-query";
 import {
   getSendReplyOnEnterPref,
-  getShowSlaAndOverduePref,
+  // getShowSlaAndOverduePref,
 } from "@/lib/user-preferences";
 import { getInitials } from "@/lib/utils";
 import { AgentReplyForm } from "./_components/agent-reply-form";
@@ -220,21 +220,25 @@ export default async function AgentTicketDetailPage({
   const { sortKey, sortOrder } = parseTicketListSort(listParams);
   const listQuery = toQueryString(listParams);
 
+  // SLA is hidden for now (see docs/tickets.md § SLA) — the policy fetch and
+  // preference fetch below are commented out, not deleted, so the feature
+  // can be restored by uncommenting.
+  const showSlaAndOverdue = false;
   const [
     categories,
     priorities,
-    slaPolicies,
+    // slaPolicies,
     cannedResponses,
     tags,
     customFields,
     prevTicketNumber,
     nextTicketNumber,
     sendReplyOnEnter,
-    showSlaAndOverdue,
+    // showSlaAndOverdue,
   ] = await Promise.all([
     getTicketCategories(),
     getTicketPriorities(),
-    getSlaPolicies(),
+    // getSlaPolicies(),
     getCannedResponses(),
     getTicketTags(ticket.id),
     getCustomFieldValues(ticket.id),
@@ -253,7 +257,7 @@ export default async function AgentTicketDetailPage({
       ticket
     ),
     getSendReplyOnEnterPref(session.id),
-    getShowSlaAndOverduePref(session.id),
+    // getShowSlaAndOverduePref(session.id),
   ]);
 
   const statusMap = Object.fromEntries(statuses.map((s) => [s.slug, s]));
@@ -296,9 +300,12 @@ export default async function AgentTicketDetailPage({
 
   const isOpen = !(statusMap[ticket.status]?.isClosedState ?? false);
 
+  // Waiting Time still needs the base snapshot (waitState/waitingSince/"Open
+  // for"); SLA is hidden, so `null` is passed instead of a resolved policy.
   const slaSnapshot = computeSlaSnapshot(
     ticket,
-    resolveSlaPolicy(slaPolicies, ticket.category, ticket.priority),
+    // resolveSlaPolicy(slaPolicies, ticket.category, ticket.priority),
+    null,
     new Date()
   );
 
