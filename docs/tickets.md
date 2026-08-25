@@ -152,7 +152,7 @@ The countdown ticks forward client-side every 30 seconds without a page reload �
 **Once the ticket is closed, every clock stops.** There is no countdown left to run, so the display switches to the outcome:
 
 - "Open for" becomes **"Resolved in 2d 4h"** — the ticket's total lifetime (created → closed), a fixed number. It never keeps counting up after closure.
-- The list's SLA column drops the most-urgent-metric pill and shows one **verdict pill** instead: **"SLA met"** (grey) or **"SLA breached"** (red, if *any* target was missed). Hover for the per-target breakdown.
+- The list's Waiting Time column drops the most-urgent-metric pill and shows one **verdict pill** instead: **"SLA met"** (grey) or **"SLA breached"** (red, if *any* target was missed). Hover for the per-target breakdown.
 - The detail sidebar shows the same verdict pill alongside every individual target's final result.
 
 A breach stays red after closing — it's the permanent record the team reports on. A met target goes grey, because a wall of green on closed tickets drowns out the open ones that actually need attention.
@@ -181,14 +181,16 @@ While a ticket is open but **waiting on the customer**, the Resolution clock is 
 
 Each agent/admin can customize their own `/tickets` table — which columns are shown and in what order —
 from the "Columns" button above the table. Checkbox, `#`, and Subject are always pinned first; the rest
-(Status, Category, Priority, SLA, Customer, Assigned, Tags, Updated By, Updated) are toggle/reorderable.
+(Status, Category, Priority, Waiting Time, Customer, Assigned, Tags, Updated By, Updated) are toggle/reorderable.
 
 - Persisted per user in `user_ticket_table_prefs` (`columns` jsonb — visibility + order), via
   `PATCH /api/tickets/table-columns`. Not shared across agents.
-- **SLA** — for an open ticket: "Open for" + current wait state, plus the single most urgent metric
-  (First/Next Response or Resolution, whichever is closest to breaching). For a closed ticket:
-  "Resolved in …" + a single "SLA met" / "SLA breached" verdict pill. See § SLA for the full model;
-  the detail page's SLA sidebar card shows all three metrics.
+- **Waiting Time** (column id `waitingTime` — named for the always-on Waiting Time display, not the
+  disabled SLA feature it also carries) — for an open ticket: "Open for" + current wait state, plus, only
+  if SLA is re-enabled, the single most urgent metric (First/Next Response or Resolution, whichever is
+  closest to breaching). For a closed ticket: "Resolved in …" + a single "SLA met" / "SLA breached"
+  verdict pill when SLA is active. See § SLA for the full model; the detail page's Waiting Time sidebar
+  card shows all three metrics when SLA is active.
 - **Tags** — the ticket's tags, read-only in this view (manage them from the ticket detail sidebar).
 - **Updated By** — the most recent **agent/admin** actor from `ticket_activity` for that ticket (customer
   activity is excluded); shows "—" if no agent/admin has touched it yet.
