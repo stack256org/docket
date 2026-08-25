@@ -1,10 +1,19 @@
-import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
-import { ADMIN_ROLE, AGENT_ROLE } from "@/config/platform";
-import { userTicketTablePrefs } from "@/db/schema/user-preferences";
-import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
+// SLA is currently hidden from the UI (see docs/tickets.md § SLA) — this
+// whole route is disabled to match, so it can't be reached even by a direct
+// request while there's no UI path to it (SlaDisplayPreferencesCard, the
+// only caller, is itself commented out). Re-enable by restoring the code
+// below alongside the other SLA re-enable steps in docs/tickets.md.
+// import type { NextRequest } from "next/server";
+// import { NextResponse } from "next/server";
+// import { ADMIN_ROLE, AGENT_ROLE } from "@/config/platform";
+// import { userTicketTablePrefs } from "@/db/schema/user-preferences";
+// import { auth } from "@/lib/auth";
+// import { db } from "@/lib/db";
 
+// No handler exported while disabled — requests to this route 404.
+export {};
+
+/*
 // /api/tickets/* is not covered by the proxy.ts middleware matcher, so we
 // check the session directly here (same pattern as
 // app/api/tickets/table-columns/route.ts) instead of the header-based
@@ -56,3 +65,4 @@ export async function PATCH(request: NextRequest) {
 
   return NextResponse.json({ showSlaAndOverdue: body.showSlaAndOverdue });
 }
+*/

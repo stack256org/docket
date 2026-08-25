@@ -217,7 +217,7 @@ export function TicketRow({
             </SelectContent>
           </Select>
         );
-      case "sla": {
+      case "waitingTime": {
         // "Show SLA & Overdue" off: the waiting time alone (SlaWaitBadge) is
         // never SLA-policy-dependent, so it stays visible either way — only
         // the SLA/overdue-specific badges below it are gated on the pref.

@@ -423,11 +423,11 @@ export function TicketInfoSidebar({
 
       {/* SLA / Waiting Time — "SLA" only when SLA & overdue info is shown;
           otherwise just the waiting-time badge, same as the ticket list's
-          SLA column (see lib/sla-display-pref.ts). */}
+          Waiting Time column (see lib/sla-display-pref.ts). */}
       <SidebarCard
         contentClassName="space-y-3"
         title={showSlaAndOverdue ? "SLA" : "Waiting Time"}
-        {...accordionProps("sla")}
+        {...accordionProps("waitingTime")}
       >
         <div className="flex items-center justify-between gap-2">
           <SlaWaitBadge snapshot={slaSnapshot} />

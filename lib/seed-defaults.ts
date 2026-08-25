@@ -1,16 +1,19 @@
 import { createId } from "@paralleldrive/cuid2";
 import {
-  slaPolicies,
+  // slaPolicies,
   ticketCategories,
   ticketPriorities,
   ticketStatuses,
 } from "@/db/schema";
 import { db } from "@/lib/db";
 
+// SLA is currently hidden from the UI (see docs/tickets.md § SLA) — the
+// default policy seed below is disabled to match, so a fresh install doesn't
+// get an orphaned sla_policies row.
 // Fixed id so onConflictDoNothing() sees the same seed row across runs. The
 // seeds below dedup on their unique `slug` instead; sla_policies has none, so
 // the row's own id is the natural key here.
-const DEFAULT_SLA_POLICY_ID = "seed-default-sla-policy";
+// const DEFAULT_SLA_POLICY_ID = "seed-default-sla-policy";
 
 /** Seeds the default ticket statuses, categories and priorities every install
  * needs. Idempotent — `onConflictDoNothing()` skips existing slugs — so
@@ -116,27 +119,27 @@ export async function seedDefaults() {
   // One unscoped (Any priority / Any category) fallback policy, so a fresh
   // install has working SLA display immediately. Admins can add scoped
   // overrides and adjust these targets at /admin/ticket-config.
-  const slaPolicy = {
-    id: DEFAULT_SLA_POLICY_ID,
-    name: "Default SLA",
-    priority: null,
-    category: null,
-    firstResponseMinutes: 60,
-    nextResponseMinutes: 240,
-    resolutionMinutes: 1440,
-    isDefault: true,
-    sortOrder: 0,
-  };
+  // const slaPolicy = {
+  //   id: DEFAULT_SLA_POLICY_ID,
+  //   name: "Default SLA",
+  //   priority: null,
+  //   category: null,
+  //   firstResponseMinutes: 60,
+  //   nextResponseMinutes: 240,
+  //   resolutionMinutes: 1440,
+  //   isDefault: true,
+  //   sortOrder: 0,
+  // };
 
   await db.insert(ticketStatuses).values(statuses).onConflictDoNothing();
   await db.insert(ticketCategories).values(categories).onConflictDoNothing();
   await db.insert(ticketPriorities).values(priorities).onConflictDoNothing();
-  await db.insert(slaPolicies).values(slaPolicy).onConflictDoNothing();
+  // await db.insert(slaPolicies).values(slaPolicy).onConflictDoNothing();
 
   return {
     statuses: statuses.length,
     categories: categories.length,
     priorities: priorities.length,
-    slaPolicies: 1,
+    // slaPolicies: 1,
   };
 }

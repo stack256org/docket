@@ -9,6 +9,23 @@ Anything needing manual work on upgrade is called out under **Upgrade notes**.
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-08-25
+
+### Changed
+
+- Continued hiding SLA (see 0.4.1): the SLA policy CRUD API
+  (`/api/admin/sla-policies`), the "Show SLA & Overdue" preference API
+  (`/api/tickets/sla-display`), and the default SLA policy seeded on setup are
+  now disabled too — commented out, not removed, same as the rest of the SLA
+  code. None of these had a UI path to them, so this closes the last
+  directly-reachable SLA surface.
+- The ticket list's Waiting Time column is no longer internally identified as
+  `sla` — renamed to `waitingTime` (label "Waiting Time"), so the always-on
+  Waiting Time feature isn't named after the disabled SLA feature it happens
+  to share code with. Also fixes the "Columns" toggle dialog showing "SLA" as
+  the option label even though the column itself always displayed "Waiting
+  Time".
+
 ## [0.4.1] - 2026-08-22
 
 ### Changed

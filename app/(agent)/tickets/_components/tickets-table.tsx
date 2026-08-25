@@ -440,10 +440,6 @@ export function TicketsTable({
                           order={activeOrder}
                         />
                       </button>
-                    ) : c.id === "sla" && !showSlaAndOverdue ? (
-                      // Only the waiting-time badge shows in this column
-                      // while the pref is off — "SLA" would be misleading.
-                      "Waiting Time"
                     ) : (
                       COLUMN_META[c.id].label
                     )}
