@@ -37,6 +37,7 @@ import {
   getTicketStatuses,
 } from "@/lib/ticket-config";
 import { COLOR_BADGE } from "@/lib/tickets";
+import { canDeleteAttachment } from "@/lib/tickets/attachment-permissions";
 import {
   buildTicketsWhereClause,
   parseTicketListSort,
@@ -439,6 +440,7 @@ export default async function AgentTicketDetailPage({
                         filename: a.filename,
                         mimeType: a.mimeType,
                         fileSize: a.fileSize,
+                        canDelete: canDeleteAttachment(a.uploadedByRole),
                       }))}
                       ticketId={ticket.id}
                     />
@@ -521,6 +523,7 @@ export default async function AgentTicketDetailPage({
                             filename: a.filename,
                             mimeType: a.mimeType,
                             fileSize: a.fileSize,
+                            canDelete: canDeleteAttachment(a.uploadedByRole),
                           }))}
                           ticketId={ticket.id}
                         />
