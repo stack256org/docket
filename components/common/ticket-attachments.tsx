@@ -27,6 +27,10 @@ import {
 import { cn } from "@/lib/utils";
 
 export interface AttachmentItem {
+  /** false hides the delete affordance for this item even when onDelete is
+   * passed (e.g. a customer's own attachment — immutable to agents/admins).
+   * Defaults to true. */
+  canDelete?: boolean;
   filename: string;
   fileSize: number;
   id: string;
@@ -230,7 +234,7 @@ export function TicketAttachments({
                   />
                 </span>
               </button>
-              {onDelete && (
+              {onDelete && a.canDelete !== false && (
                 <button
                   aria-label={`Delete ${a.filename}`}
                   className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity hover:bg-black/80 group-hover:opacity-100"
@@ -267,7 +271,7 @@ export function TicketAttachments({
             </div>
             <DownloadSimpleIcon className="size-4 shrink-0 text-base-content-muted group-hover:text-base-content" />
           </a>
-          {onDelete && (
+          {onDelete && a.canDelete !== false && (
             <button
               aria-label={`Delete ${a.filename}`}
               className="shrink-0 text-base-content-muted transition-colors hover:text-error"

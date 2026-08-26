@@ -9,6 +9,18 @@ Anything needing manual work on upgrade is called out under **Upgrade notes**.
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-08-26
+
+### Fixed
+
+- Agents and admins could delete a customer's own ticket attachments —
+  the delete button was shown regardless of who uploaded the file, and
+  `DELETE /api/tickets/[id]/attachments/[attachmentId]` never checked
+  ownership either. Customer attachments are now immutable to staff: the
+  delete affordance no longer renders on them, and the endpoint rejects
+  the request server-side (`403`) even if called directly. Agent/admin
+  attachments are unaffected — deletion still works as before for those.
+
 ## [0.4.2] - 2026-08-25
 
 ### Changed

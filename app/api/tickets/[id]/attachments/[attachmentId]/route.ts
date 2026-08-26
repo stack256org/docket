@@ -6,6 +6,7 @@ import { ticketActivity, ticketAttachments } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
+import { canDeleteAttachment } from "@/lib/tickets/attachment-permissions";
 
 // DELETE /api/tickets/[id]/attachments/[attachmentId] — agent/admin only.
 // Per docs/file-uploads.md: delete the storage file first (log-and-proceed on
@@ -39,6 +40,13 @@ export async function DELETE(
     return NextResponse.json(
       { error: "Attachment not found." },
       { status: 404 }
+    );
+  }
+
+  if (!canDeleteAttachment(attachment.uploadedByRole)) {
+    return NextResponse.json(
+      { error: "Customer attachments cannot be deleted." },
+      { status: 403 }
     );
   }
 
