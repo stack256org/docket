@@ -9,6 +9,23 @@ Anything needing manual work on upgrade is called out under **Upgrade notes**.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-27
+
+### Added
+
+- The ticket list's **Waiting Time** column is now sortable (ascending/descending),
+  same as the Updated column. Sorting uses the actual waiting-time duration
+  (derived from `waitingSince`/`createdAt`/`closedAt`, the same source the
+  waiting-time badge already reads), not the formatted "2h"/"1d 4h" display
+  text. Works together with all existing filters, including Status, and with
+  pagination and the detail page's Previous/Next navigation.
+
+### Changed
+
+- The Updated column's sort indicator now uses plain up/down arrow icons
+  instead of the previous caret/sort-glyph style, for a clearer ascending/
+  descending affordance. Sorting behavior is unchanged.
+
 ## [0.4.3] - 2026-08-26
 
 ### Fixed

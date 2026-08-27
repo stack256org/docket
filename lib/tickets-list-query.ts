@@ -12,6 +12,7 @@ import {
 } from "drizzle-orm";
 import { customers } from "@/db/schema/customers";
 import { tickets } from "@/db/schema/tickets";
+import { waitingTimeSecondsSql } from "@/lib/sla";
 
 /** Everything the tickets list page's filters/sort/pagination can put in the URL. */
 export interface TicketListSearchParams {
@@ -64,6 +65,7 @@ export function ticketMatchesView(
 export const SORT_COLUMNS = {
   id: tickets.ticketNumber,
   updatedAt: tickets.updatedAt,
+  waitingTime: waitingTimeSecondsSql,
 } as const;
 export type SortKey = keyof typeof SORT_COLUMNS;
 
@@ -99,8 +101,14 @@ export function parseTicketListSort(params: TicketListSearchParams): {
   sortKey: SortKey;
   sortOrder: "asc" | "desc";
 } {
+  const sortKey: SortKey =
+    params.sort === "id"
+      ? "id"
+      : params.sort === "waitingTime"
+        ? "waitingTime"
+        : "updatedAt";
   return {
-    sortKey: params.sort === "id" ? "id" : "updatedAt",
+    sortKey,
     sortOrder: params.order === "asc" ? "asc" : "desc",
   };
 }
