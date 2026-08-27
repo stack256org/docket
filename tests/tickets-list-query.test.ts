@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { parseTicketView, ticketMatchesView } from "@/lib/tickets-list-query";
+import {
+  parseTicketListSort,
+  parseTicketView,
+  ticketMatchesView,
+} from "@/lib/tickets-list-query";
 
 const OPEN_SLUGS = ["open", "in_progress"];
 
@@ -94,5 +98,44 @@ describe("ticketMatchesView — Awaiting Our Reply", () => {
     expect(ticketMatchesView("awaiting", afterReply, OPEN_SLUGS)).toBe(false);
     // ...but it's still open, so it remains in the other view.
     expect(ticketMatchesView("open", afterReply, OPEN_SLUGS)).toBe(true);
+  });
+});
+
+describe("parseTicketListSort", () => {
+  it("defaults to updatedAt/desc when unset", () => {
+    expect(parseTicketListSort({})).toEqual({
+      sortKey: "updatedAt",
+      sortOrder: "desc",
+    });
+  });
+
+  it("recognizes the id sort key", () => {
+    expect(parseTicketListSort({ sort: "id", order: "asc" })).toEqual({
+      sortKey: "id",
+      sortOrder: "asc",
+    });
+  });
+
+  it("recognizes the waitingTime sort key", () => {
+    expect(parseTicketListSort({ sort: "waitingTime", order: "asc" })).toEqual({
+      sortKey: "waitingTime",
+      sortOrder: "asc",
+    });
+  });
+
+  it("falls back to updatedAt for an unrecognized sort value", () => {
+    expect(parseTicketListSort({ sort: "customer" })).toEqual({
+      sortKey: "updatedAt",
+      sortOrder: "desc",
+    });
+  });
+
+  it("falls back to desc for an unrecognized order value", () => {
+    expect(
+      parseTicketListSort({ sort: "waitingTime", order: "sideways" })
+    ).toEqual({
+      sortKey: "waitingTime",
+      sortOrder: "desc",
+    });
   });
 });

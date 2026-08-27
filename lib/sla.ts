@@ -88,6 +88,30 @@ function secondsBetween(from: Date, to: Date): number {
   return Math.max(0, Math.round((to.getTime() - from.getTime()) / 1000));
 }
 
+/** DB-side duration a ticket has been waiting, in seconds — the same
+ * closedAt/createdAt/waitingSince fields computeSlaSnapshot() reads, ported to
+ * SQL so the ticket list can ORDER BY the real duration (Waiting Time column)
+ * instead of the formatted "2h"/"1d 4h" display string. Resolved tickets sort
+ * by their final "Resolved in" duration, open ones by time since the current
+ * wait state began. */
+export const waitingTimeSecondsSql = sql<number>`case
+  when ${tickets.closedAt} is not null
+    then extract(epoch from (${tickets.closedAt} - ${tickets.createdAt}))
+  else extract(epoch from (now() - coalesce(${tickets.waitingSince}, ${tickets.createdAt})))
+end`;
+
+/** JS-side equivalent of waitingTimeSecondsSql, for the detail page's prev/next
+ * keyset comparison, which needs the current ticket's value computed rather
+ * than issued as SQL. */
+export function computeWaitingTimeSeconds(
+  ticket: Pick<SlaTicketState, "closedAt" | "createdAt" | "waitingSince">,
+  now: Date
+): number {
+  return ticket.closedAt
+    ? secondsBetween(ticket.createdAt, ticket.closedAt)
+    : secondsBetween(ticket.waitingSince ?? ticket.createdAt, now);
+}
+
 export function resolveWaitState(
   ticket: Pick<SlaTicketState, "closedAt" | "awaitingReply">
 ): WaitState {

@@ -27,7 +27,11 @@ import { getCannedResponses } from "@/lib/canned-responses";
 import { getCustomFieldValues } from "@/lib/custom-fields";
 import { db } from "@/lib/db";
 import { isRichTextEmpty } from "@/lib/rich-text";
-import { computeSlaSnapshot } from "@/lib/sla";
+import {
+  computeSlaSnapshot,
+  computeWaitingTimeSeconds,
+  waitingTimeSecondsSql,
+} from "@/lib/sla";
 // import { getSlaPolicies, resolveSlaPolicy } from "@/lib/sla-policies";
 import { storage } from "@/lib/storage";
 import { getTicketTags } from "@/lib/tags";
@@ -73,41 +77,60 @@ async function getAdjacentTicketNumber(
   whereClause: ReturnType<typeof buildTicketsWhereClause>,
   sortKey: SortKey,
   sortOrder: "asc" | "desc",
-  current: { ticketNumber: number; updatedAt: Date }
+  current: { ticketNumber: number; updatedAt: Date; waitingTimeSeconds: number }
 ): Promise<number | null> {
   const wantsGreater =
     direction === "next" ? sortOrder === "asc" : sortOrder === "desc";
+  const resultOrder = wantsGreater ? asc : desc;
 
+  if (sortKey === "id") {
+    const seekCondition = wantsGreater
+      ? gt(tickets.ticketNumber, current.ticketNumber)
+      : lt(tickets.ticketNumber, current.ticketNumber);
+    const where = whereClause ? and(whereClause, seekCondition) : seekCondition;
+    const [row] = await db
+      .select({ ticketNumber: tickets.ticketNumber })
+      .from(tickets)
+      .innerJoin(customers, eq(tickets.customerId, customers.id))
+      .where(where)
+      .orderBy(resultOrder(tickets.ticketNumber))
+      .limit(1);
+    return row?.ticketNumber ?? null;
+  }
+
+  // updatedAt / waitingTime — neither is unique, so tie-break on ticketNumber
+  // to stay a strict total order across pages. Branched (rather than looked
+  // up generically via SORT_COLUMNS[sortKey]) because each expression's value
+  // type differs (Date vs number) and the union loses Drizzle's overload match.
+  const tieBreak = wantsGreater
+    ? gt(tickets.ticketNumber, current.ticketNumber)
+    : lt(tickets.ticketNumber, current.ticketNumber);
   const seekCondition =
-    sortKey === "id"
-      ? wantsGreater
-        ? gt(tickets.ticketNumber, current.ticketNumber)
-        : lt(tickets.ticketNumber, current.ticketNumber)
+    sortKey === "waitingTime"
+      ? or(
+          wantsGreater
+            ? gt(waitingTimeSecondsSql, current.waitingTimeSeconds)
+            : lt(waitingTimeSecondsSql, current.waitingTimeSeconds),
+          and(eq(waitingTimeSecondsSql, current.waitingTimeSeconds), tieBreak)
+        )
       : or(
           wantsGreater
             ? gt(tickets.updatedAt, current.updatedAt)
             : lt(tickets.updatedAt, current.updatedAt),
-          and(
-            eq(tickets.updatedAt, current.updatedAt),
-            wantsGreater
-              ? gt(tickets.ticketNumber, current.ticketNumber)
-              : lt(tickets.ticketNumber, current.ticketNumber)
-          )
+          and(eq(tickets.updatedAt, current.updatedAt), tieBreak)
         );
-
   const where = whereClause ? and(whereClause, seekCondition) : seekCondition;
-  const resultOrder = wantsGreater ? asc : desc;
+  const orderExprs =
+    sortKey === "waitingTime"
+      ? [resultOrder(waitingTimeSecondsSql), resultOrder(tickets.ticketNumber)]
+      : [resultOrder(tickets.updatedAt), resultOrder(tickets.ticketNumber)];
 
   const [row] = await db
     .select({ ticketNumber: tickets.ticketNumber })
     .from(tickets)
     .innerJoin(customers, eq(tickets.customerId, customers.id))
     .where(where)
-    .orderBy(
-      ...(sortKey === "id"
-        ? [resultOrder(tickets.ticketNumber)]
-        : [resultOrder(tickets.updatedAt), resultOrder(tickets.ticketNumber)])
-    )
+    .orderBy(...orderExprs)
     .limit(1);
 
   return row?.ticketNumber ?? null;
@@ -221,6 +244,14 @@ export default async function AgentTicketDetailPage({
   const { sortKey, sortOrder } = parseTicketListSort(listParams);
   const listQuery = toQueryString(listParams);
 
+  // Shared "now" for both the keyset lookup below and the SLA snapshot further
+  // down, so a ticket's waiting-time value can't drift between the two.
+  const now = new Date();
+  const adjacentSeekTicket = {
+    ...ticket,
+    waitingTimeSeconds: computeWaitingTimeSeconds(ticket, now),
+  };
+
   // SLA is hidden for now (see docs/tickets.md § SLA) — the policy fetch and
   // preference fetch below are commented out, not deleted, so the feature
   // can be restored by uncommenting.
@@ -248,14 +279,14 @@ export default async function AgentTicketDetailPage({
       listWhereClause,
       sortKey,
       sortOrder,
-      ticket
+      adjacentSeekTicket
     ),
     getAdjacentTicketNumber(
       "next",
       listWhereClause,
       sortKey,
       sortOrder,
-      ticket
+      adjacentSeekTicket
     ),
     getSendReplyOnEnterPref(session.id),
     // getShowSlaAndOverduePref(session.id),
@@ -307,7 +338,7 @@ export default async function AgentTicketDetailPage({
     ticket,
     // resolveSlaPolicy(slaPolicies, ticket.category, ticket.priority),
     null,
-    new Date()
+    now
   );
 
   return (

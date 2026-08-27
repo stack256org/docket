@@ -1,9 +1,9 @@
 "use client";
 
 import {
-  CaretUpDownIcon,
-  SortAscendingIcon,
-  SortDescendingIcon,
+  ArrowDownIcon,
+  ArrowsDownUpIcon,
+  ArrowUpIcon,
   TrashIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
@@ -65,12 +65,12 @@ function SortIcon({
   order: "asc" | "desc";
 }) {
   if (!active) {
-    return <CaretUpDownIcon className="size-3.5 text-base-content-muted/50" />;
+    return <ArrowsDownUpIcon className="size-3.5 text-base-content-muted/50" />;
   }
   return order === "asc" ? (
-    <SortAscendingIcon className="size-3.5 text-base-content" />
+    <ArrowUpIcon className="size-3.5 text-base-content" />
   ) : (
-    <SortDescendingIcon className="size-3.5 text-base-content" />
+    <ArrowDownIcon className="size-3.5 text-base-content" />
   );
 }
 
@@ -131,10 +131,16 @@ export function TicketsTable({
   } | null>(null);
   const [closingBusy, setClosingBusy] = useState(false);
 
-  const activeSort = searchParams.get("sort") === "id" ? "id" : "updatedAt";
+  const sortParam = searchParams.get("sort");
+  const activeSort =
+    sortParam === "id"
+      ? "id"
+      : sortParam === "waitingTime"
+        ? "waitingTime"
+        : "updatedAt";
   const activeOrder = searchParams.get("order") === "asc" ? "asc" : "desc";
 
-  function toggleSort(column: "id" | "updatedAt") {
+  function toggleSort(column: "id" | "updatedAt" | "waitingTime") {
     const params = new URLSearchParams(searchParams.toString());
     const nextOrder =
       activeSort === column && activeOrder === "desc" ? "asc" : "desc";
@@ -423,28 +429,34 @@ export function TicketsTable({
                 <th className="text-left px-4 py-3 text-xs font-medium text-base-content-muted uppercase tracking-wide w-56">
                   Subject
                 </th>
-                {visibleColumns.map((c) => (
-                  <th
-                    className={`text-left px-4 py-3 text-xs font-medium text-base-content-muted uppercase tracking-wide ${COLUMN_META[c.id].width}`}
-                    key={c.id}
-                  >
-                    {c.id === "updatedAt" ? (
-                      <button
-                        className="inline-flex items-center gap-1 hover:text-base-content"
-                        onClick={() => toggleSort("updatedAt")}
-                        type="button"
-                      >
-                        {COLUMN_META[c.id].label}
-                        <SortIcon
-                          active={activeSort === "updatedAt"}
-                          order={activeOrder}
-                        />
-                      </button>
-                    ) : (
-                      COLUMN_META[c.id].label
-                    )}
-                  </th>
-                ))}
+                {visibleColumns.map((c) => {
+                  const sortableColumn =
+                    c.id === "updatedAt" || c.id === "waitingTime"
+                      ? c.id
+                      : null;
+                  return (
+                    <th
+                      className={`text-left px-4 py-3 text-xs font-medium text-base-content-muted uppercase tracking-wide ${COLUMN_META[c.id].width}`}
+                      key={c.id}
+                    >
+                      {sortableColumn ? (
+                        <button
+                          className="inline-flex items-center gap-1 hover:text-base-content"
+                          onClick={() => toggleSort(sortableColumn)}
+                          type="button"
+                        >
+                          {COLUMN_META[c.id].label}
+                          <SortIcon
+                            active={activeSort === sortableColumn}
+                            order={activeOrder}
+                          />
+                        </button>
+                      ) : (
+                        COLUMN_META[c.id].label
+                      )}
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody className="divide-y divide-base-300/60">
