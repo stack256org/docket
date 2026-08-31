@@ -1,5 +1,5 @@
 {
-  "name": "@stack256/docket",
+  "name": "@stack256org/docket",
   "version": "0.5.0",
   "description": "Open-source, self-hosted customer support ticketing system.",
   "type": "module",
