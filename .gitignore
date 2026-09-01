@@ -52,3 +52,9 @@ next-env.d.ts
 *.dump
 docket-db-*
 
+
+# Brainer — derived index. rejected.json is your input, keep it.
+.brainer/index.db
+.brainer/index.db-*
+.brainer/models/
+.brainer/hooks/
