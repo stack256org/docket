@@ -1,6 +1,11 @@
+import { McpConnectedAppsCard } from "@/components/settings/mcp-connected-apps-card";
+import { McpTokensCard } from "@/components/settings/mcp-tokens-card";
 import { ReplyComposerPreferencesCard } from "@/components/settings/reply-composer-preferences-card";
 // import { SlaDisplayPreferencesCard } from "@/components/settings/sla-display-preferences-card";
 import { requireAgent } from "@/lib/authz";
+import { isMcpServing } from "@/lib/mcp/http";
+import { isOAuthAvailable } from "@/lib/oauth";
+import { getPlatformSettings } from "@/lib/settings";
 import {
   getSendReplyOnEnterPref,
   // getShowSlaAndOverduePref,
@@ -20,6 +25,9 @@ export default async function SettingsPage() {
     // getShowSlaAndOverduePref(session.id),
   ]);
 
+  // The AI assistant (MCP) section only exists while the endpoint is serving.
+  const mcpServing = isMcpServing(await getPlatformSettings());
+
   // Page title + description come from the TopBar (components/agent/topbar.tsx).
   return (
     <div className="p-6 space-y-6 max-w-4xl mx-auto">
@@ -27,6 +35,8 @@ export default async function SettingsPage() {
       <ReplyComposerPreferencesCard
         initialSendReplyOnEnter={sendReplyOnEnter}
       />
+      {mcpServing && <McpTokensCard />}
+      {mcpServing && isOAuthAvailable() && <McpConnectedAppsCard />}
     </div>
   );
 }

@@ -356,15 +356,15 @@ docker compose up -d
 Pin a version in production, because `latest` moves with every release:
 
 ```bash
-IMAGE_TAG=0.8.0 docker compose up -d
+IMAGE_TAG=0.9.0 docker compose up -d
 ```
 
-Available tags are `latest`, the `0` / `0.8` / `0.8.0` ladder, `main` (rebuilt on
+Available tags are `latest`, the `0` / `0.9` / `0.9.0` ladder, `main` (rebuilt on
 every change, expect rough edges), and a fixed `sha-<short>` per build. Each carries builds
 for both Intel and ARM machines:
 
 ```bash
-docker pull ghcr.io/stack256org/docket:0.8.0
+docker pull ghcr.io/stack256org/docket:0.9.0
 ```
 <!-- END GENERATED: image-tags -->
 
@@ -695,6 +695,12 @@ Known gaps, roughly in the order people ask for them:
 - **Attachments and outgoing notifications in the public API.** See the limits section in
   [docs/api.md](docs/api.md).
 - **More polish on small screens** for the two-column request view.
+- **Pending: magic-link sign-in after an email change.** Changing your email on the profile
+  page marks the new address as unverified. If you then sign in with a magic link while it
+  is still unverified, Better Auth (1.7.14) deletes the account's existing sign-in methods,
+  including its password, and signs out its other sessions. An admin can set a new password
+  to restore password sign-in. Follow-up: review the email-verification flow so an email
+  change can't lead to unexpected account and session changes.
 
 Want one of these, or something not listed?
 [Open an issue](https://github.com/stack256org/docket/issues/new/choose) describing the

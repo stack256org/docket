@@ -15,6 +15,7 @@ All routes under `/(agent)/` require a valid session.
 | `/dashboard` | Stats overview |
 | `/tickets` | All tickets list |
 | `/tickets/{ticketNumber}` | Ticket detail + management |
+| `/settings` | Personal preferences and AI assistant (MCP) tokens |
 
 ---
 
@@ -169,6 +170,16 @@ The full ticket view for agents. Split into two panels:
 
 Full rules: [tickets.md § Merge, Split & Link](./tickets.md#merge-split--link).
 
+### AI assistant requests (banner)
+
+When the viewer's own AI assistant (an MCP token they own, see [mcp.md](./mcp.md)) has asked to close the ticket or send a reply, a banner appears between the breadcrumb and the conversation, outside the scrolling thread.
+
+- One row per request: "Your AI assistant asks to close this ticket" or "Your AI assistant asks to send this reply", the token name and when the request expires. A reply is rendered read-only through `RichTextContent`.
+- **Approve** and **Dismiss** buttons. Approving a reply opens a confirmation dialog first (it emails the customer); approving a close acts at once. Buttons are disabled while a request is in flight; the server decides who wins a double click.
+- Approving runs the normal close or reply as the viewer, so the result is an ordinary entry in the ticket history marked `via: "mcp"`. Dismissing changes nothing.
+- **Only the token owner sees the banner.** Other agents and admins never see it, and cannot act on it. A request that expired, was cancelled (token revoked, owner deactivated, ticket merged) or was already decided is not shown.
+- Requests also appear as an `mcp_action_pending` notification in the bell and as an OS push.
+
 ---
 
 ## 3. Activity History
@@ -185,6 +196,22 @@ Events visible to agents:
 
 Events visible to customers (on the customer portal):
 - Status changes, replies only — no internal events.
+
+---
+
+## Settings (`/settings`)
+
+Personal (per-user) preferences, as opposed to the org-wide settings admins manage under `/admin/*`.
+
+### AI assistant access (MCP)
+
+Shown only while an admin has MCP access switched on (`docs/admin-portal.md` § 6). Lets you create personal access tokens so an AI assistant such as Claude Code can read Docket data as you.
+
+- **Create token** — give it a name (1–100 characters), choose its scopes, and choose an expiry of 7, 30, 60 or 90 days (default 30; never longer than 90). Scopes: `tickets:read` (tickets, statuses, tags and stats), `customers:read` (customer profiles), `tickets:write` (save reply drafts, add internal notes, change tags, priority and category; never pre-selected, so tick it to let the assistant change things) and, for admins only, `reports:read` (admin reports). Only the scopes your role may grant are offered.
+- **Shown once** — the token is displayed a single time, right after creation, together with a ready-to-copy Claude Code setup command. It cannot be retrieved later; if you lose it, revoke it and create a new one.
+- **List and revoke** — your tokens are listed with their key prefix, scopes, created / last used / expires dates and status (`active`, `expired`, `revoked`). **Revoke** asks for confirmation and takes effect immediately.
+- **What revokes tokens** — signing out of your other sessions (Profile → Active Sessions) revokes all of your tokens, and so does an admin deactivating your account (reactivating it does not restore them). Resetting your password does **not** revoke tokens, so review the list after a password reset.
+- Tokens cannot be created while an admin is impersonating you.
 
 ---
 

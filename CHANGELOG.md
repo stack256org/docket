@@ -9,6 +9,82 @@ Anything needing manual work on upgrade is called out under **Upgrade notes**.
 
 ## [Unreleased]
 
+### Added
+
+- **OAuth sign-in for AI assistants (MCP).** claude.ai, Claude Desktop, mobile and Claude Code's
+  login can now connect to `/api/mcp` by signing in to Docket and approving access on a consent
+  screen, instead of pasting a personal access token. Only agents and admins can approve, only the
+  permissions their role allows, and every connected app can be revoked from **Settings → Connected
+  apps** (or by an admin), effective on the next call. Applications identify themselves with Client
+  ID Metadata Documents; open dynamic client registration is not offered. Personal access tokens
+  keep working unchanged. See `docs/mcp.md` § 3a.
+
+### Changed
+
+- **Better Auth upgraded from 1.6.18 to 1.7.14.** No code or configuration changes were
+  needed. Checked against a fresh database: password and magic-link sign-in, sign-out,
+  sessions, creating users and setting their passwords, banning, password reset, and the
+  admin switches for each sign-in method all work as before. Google sign-in was only checked
+  with no Google credentials set up.
+
+### Upgrade notes
+
+- **Two additive migrations.** `0019` adds the admin switch for MCP customer replies; `0020` adds
+  the OAuth tables and an optional column on MCP approval requests. No existing data changes, and the
+  tables Better Auth uses are unchanged by the 1.7 upgrade.
+- **OAuth needs HTTPS.** OAuth is switched on only when `NEXT_PUBLIC_APP_URL` is `https://` (or a
+  `localhost` / `127.0.0.1` address). Any other plain-`http` deployment starts as before, with
+  personal access tokens only.
+- **Reverse proxies** must pass `/.well-known/oauth-protected-resource/…`,
+  `/.well-known/oauth-authorization-server/…` and `/api/auth/…` through unchanged for OAuth to work.
+- Known issue, not fixed yet: a magic-link sign-in to an email address changed on the profile
+  page now removes that account's password and signs out its other sessions. An admin can
+  set a new password. Tracked as Pending in the README's Roadmap.
+
+### Fixed
+
+- **A ticket closed twice at the same moment** (two tabs, the customer portal, the API) now sends
+  one close email and one `ticket.closed` webhook instead of two. The second request gets the usual
+  "Ticket is already closed." response.
+- **Closing from the status menu at the same moment as another close** no longer sends a
+  duplicate `ticket.closed` webhook or writes a second "closed" entry in the ticket activity.
+
+## [0.9.0] - 2026-10-28
+
+### Added
+
+- **AI assistant access (MCP).** Docket can expose a Model Context Protocol endpoint at `/api/mcp`,
+  so an assistant such as Claude Code can look up tickets, threads, customers, canned responses and
+  statistics as the agent or admin who created its token, seeing only what that person can see.
+  An admin switches it on under **Admin → AI assistant (MCP)**. It is off by default, and in
+  production it only turns on when `NEXT_PUBLIC_APP_URL` uses `https://`. Each person creates
+  their own tokens under **Settings → AI assistant access**. Tokens are read-only unless the
+  optional `tickets:write` scope is ticked; with it the assistant can save reply drafts, add
+  internal notes and change tags, priority and category. It cannot reply to a customer, close,
+  reopen or assign, and every change is recorded in the audit log and ticket activity. See
+  `docs/mcp.md`.
+
+### Security
+
+- **API attachment downloads match what the API lists.**
+  `GET /api/v1/tickets/:id/attachments/:attachmentId` now serves only a ticket's own attachments
+  and those on public replies, the files the `url` fields on `GET /tickets/:id` and
+  `GET /tickets/:id/comments` point to. Any other attachment id gets the same `404` as an unknown
+  one. Integrations that follow those `url` fields are unaffected.
+- **Ticket attachment links are tied to a sign-in or a portal visit.** Agents and admins open
+  attachments as before while signed in. The customer portal now shows each attachment through a
+  link that expires after one to two hours; reloading the page gives fresh links. Logos and other
+  branding images stay public, so emails are unaffected.
+
+### Upgrade notes
+
+- A raw `/api/files/tickets/...` attachment URL that was copied or saved elsewhere now opens only
+  for a signed-in agent or admin. Customers' portal links in emails keep working and always show
+  current attachment links.
+- Docket now logs a warning at startup when `APP_SECRET` is shorter than 32 characters. It still
+  starts; generate a longer value with `openssl rand -base64 32` when convenient. Changing
+  `APP_SECRET` signs everyone out and makes previously encrypted settings unreadable, so plan it.
+
 ## [0.8.0] - 2026-10-22
 
 ### Added

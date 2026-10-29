@@ -183,6 +183,10 @@ Ticket **descriptions** (submit form) and **replies** (both customer and agent) 
   attachment) and keeps ticket-attachment access control in Docket's
   own route. `/api/files/[...key]` calls `storage.download()`,
   which works identically for every driver.
+- **`tickets/*` files need an agent/admin session or a signed link.** Agent
+  pages use `storage.url(key)`; the customer portal (no session) must use
+  `signFileUrl(key)` from `lib/file-access.ts`, and only for files it shows.
+  `branding/*` stays public. See `docs/file-uploads.md` → "Serving files".
 - **`local` driver in Docker:** `./uploads` MUST be a persistent volume or
   every redeploy wipes all files (container filesystem resets from the
   image each time). The compose files pin it to a literal volume name
@@ -284,6 +288,7 @@ Ticket **descriptions** (submit form) and **replies** (both customer and agent) 
 | In-App Notifications | `docs/in-app-notifications.md` |
 | Real-Time Updates | `docs/realtime-updates.md` |
 | Deployment & Zammad Migration | `docs/deployment-and-zammad-migration.md` |
+| AI Assistant Access (MCP) | `docs/mcp.md` |
 
 ---
 

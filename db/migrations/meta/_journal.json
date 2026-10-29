@@ -120,6 +120,34 @@
       "when": 1792388848833,
       "tag": "0016_nervous_lucky_pierre",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793011408102,
+      "tag": "0017_ancient_tinkerer",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793182227510,
+      "tag": "0018_magical_blazing_skull",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793189310137,
+      "tag": "0019_large_mandarin",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1793256456781,
+      "tag": "0020_curvy_human_torch",
+      "breakpoints": true
     }
   ]
 }

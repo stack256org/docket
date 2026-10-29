@@ -18,16 +18,12 @@ import { ScrollToBottomOnMount } from "@/components/common/scroll-to-bottom-on-m
 import { ADMIN_ROLE } from "@/config/platform";
 import { user } from "@/db/schema/auth";
 import { customers } from "@/db/schema/customers";
-import {
-  ticketActivity,
-  ticketAttachments,
-  ticketComments,
-  tickets,
-} from "@/db/schema/tickets";
+import { tickets } from "@/db/schema/tickets";
 import { requireAgent } from "@/lib/authz";
 import { getCannedResponses } from "@/lib/canned-responses";
 import { getCustomFieldValues } from "@/lib/custom-fields";
 import { db } from "@/lib/db";
+import { listActionablePendingActionsForViewer } from "@/lib/mcp/pending-actions";
 import { isRichTextEmpty } from "@/lib/rich-text";
 // import { getSlaPolicies, resolveSlaPolicy } from "@/lib/sla-policies";
 import { getPlatformSettings, getTicketActionSettings } from "@/lib/settings";
@@ -48,6 +44,7 @@ import { resolveAttachmentLimits } from "@/lib/tickets/attachment-limits";
 import { canDeleteAttachment } from "@/lib/tickets/attachment-permissions";
 import { ticketLinkLabel } from "@/lib/tickets/link-types";
 import { getTicketLinks } from "@/lib/tickets/links";
+import { getTicketThread } from "@/lib/tickets/queries";
 import { getReplyDraft } from "@/lib/tickets/reply-drafts";
 import {
   buildTicketsWhereClause,
@@ -63,6 +60,7 @@ import {
 import { getInitials } from "@/lib/utils";
 import { AgentReplyForm } from "./_components/agent-reply-form";
 import { CustomerProfilePopover } from "./_components/customer-profile-popover";
+import { McpPendingActionsBanner } from "./_components/mcp-pending-actions-banner";
 import { SplitCommentButton } from "./_components/split-comment-button";
 import { TicketInfoSidebar } from "./_components/ticket-info-sidebar";
 
@@ -297,6 +295,7 @@ export default async function AgentTicketDetailPage({
     links,
     ticketActions,
     platformSettings,
+    mcpPendingActions,
     // showSlaAndOverdue,
   ] = await Promise.all([
     getTicketCategories(),
@@ -324,23 +323,14 @@ export default async function AgentTicketDetailPage({
     getTicketLinks(ticket.id),
     getTicketActionSettings(),
     getPlatformSettings(),
+    listActionablePendingActionsForViewer(ticket.id, session.id),
     // getShowSlaAndOverduePref(session.id),
   ]);
 
   const statusMap = Object.fromEntries(statuses.map((s) => [s.slug, s]));
   const categoryMap = Object.fromEntries(categories.map((c) => [c.slug, c]));
 
-  // All comments — agents see internal notes too
-  const comments = await db
-    .select()
-    .from(ticketComments)
-    .where(eq(ticketComments.ticketId, ticket.id))
-    .orderBy(asc(ticketComments.createdAt));
-
-  const attachments = await db
-    .select()
-    .from(ticketAttachments)
-    .where(eq(ticketAttachments.ticketId, ticket.id));
+  const { comments, attachments, activity } = await getTicketThread(ticket.id);
 
   const ticketLevelAttachments = attachments.filter((a) => !a.commentId);
   const attachmentsByComment = new Map<string, typeof attachments>();
@@ -352,12 +342,6 @@ export default async function AgentTicketDetailPage({
       attachmentsByComment.get(a.commentId)!.push(a);
     }
   }
-
-  const activity = await db
-    .select()
-    .from(ticketActivity)
-    .where(eq(ticketActivity.ticketId, ticket.id))
-    .orderBy(desc(ticketActivity.createdAt));
 
   // Agents for assignment dropdown
   const agents = await db
@@ -434,6 +418,19 @@ export default async function AgentTicketDetailPage({
           Ticket #{mergedFromNumber} was merged into this ticket.
         </div>
       )}
+
+      {/* Requests the viewer's own AI assistant made on this ticket, awaiting
+          their decision. Only the token owner is ever handed these rows. Outside
+          the thread's scroll area for the same reason as the notice above. */}
+      <McpPendingActionsBanner
+        actions={mcpPendingActions.map((a) => ({
+          id: a.id,
+          kind: a.kind,
+          content: a.content,
+          credentialName: a.credentialName,
+          expiresAt: a.expiresAt.toISOString(),
+        }))}
+      />
 
       {/* Two-column row — no gap and no padding on the row itself:
           the divider is the sidebar's own border-l sitting flush
