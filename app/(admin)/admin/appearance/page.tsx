@@ -18,6 +18,7 @@ export default async function AppearancePage() {
         <BrandingSettingsForm
           initialBrandName={settings.brandName}
           initialFaviconUrl={resolveLogoUrl(settings.faviconKey)}
+          initialLogoDarkUrl={resolveLogoUrl(settings.logoDarkKey)}
           initialLogoUrl={resolveLogoUrl(settings.logoKey)}
         />
       </div>

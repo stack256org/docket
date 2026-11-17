@@ -452,6 +452,9 @@ push_subscriptions
 `ticket_split_notifications_enabled`, `ticket_link_enabled`,
 `ticket_link_notifications_enabled`.
 
+`platform_settings.logo_dark_key` (`text`, nullable) is the optional logo for dark backgrounds
+(Admin → Appearance), used only in the agent/admin sidebar; `NULL` falls back to `logo_key`.
+
 `platform_settings` also holds the admin-configurable attachment caps (Admin → Ticket Config →
 Attachment Limits), all `integer NOT NULL`: `attachment_max_per_message` (default 5),
 `attachment_max_file_size_mb` (10) and `attachment_max_per_ticket_size_mb` (250 — combined size of a
