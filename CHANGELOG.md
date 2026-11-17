@@ -9,6 +9,14 @@ Anything needing manual work on upgrade is called out under **Upgrade notes**.
 
 ## [Unreleased]
 
+### Added
+
+- **Logo for dark backgrounds.** Admin → Appearance has an optional second logo shown in the sidebar, which is dark in every theme. Upload a light/white version so a dark wordmark stays readable; without one the sidebar keeps using the main logo.
+
+### Fixed
+
+- **Branding uploads show up immediately.** Uploading or removing the logo, dark-background logo or favicon in Admin → Appearance now updates the sidebar and browser tab right away instead of after a page reload.
+
 ## [0.8.0] - 2026-10-22
 
 ### Added

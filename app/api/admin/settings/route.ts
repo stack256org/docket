@@ -70,6 +70,7 @@ export async function GET(_request: NextRequest) {
       row?.ticketEmailNotificationsEnabled ?? true,
     brandName: row?.brandName ?? null,
     logoKey: row?.logoKey ?? null,
+    logoDarkKey: row?.logoDarkKey ?? null,
     emailAccentColor: row?.emailAccentColor ?? null,
     ...pickTicketActionSettings(row),
     ...attachmentSettingsFrom(row),

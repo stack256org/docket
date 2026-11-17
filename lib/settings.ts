@@ -45,6 +45,7 @@ export const getPlatformSettings = cache(async () => {
         DEFAULT_ATTACHMENT_LIMITS.maxPerTicketSizeMb,
       brandName: null as string | null,
       logoKey: null as string | null,
+      logoDarkKey: null as string | null,
       faviconKey: null as string | null,
       emailAccentColor: null as string | null,
     }
@@ -88,6 +89,15 @@ export function resolveFaviconUrl(
   logoKey: string | null | undefined
 ): string | null {
   return resolveLogoUrl(faviconKey ?? logoKey);
+}
+
+/** The sidebar logo's serving URL. The sidebar is dark in every preset, so a
+ * dedicated dark-background logo wins; falls back to the main logo. */
+export function resolveSidebarLogoUrl(
+  logoDarkKey: string | null | undefined,
+  logoKey: string | null | undefined
+): string | null {
+  return resolveLogoUrl(logoDarkKey ?? logoKey);
 }
 
 /** The configured email accent color (hex), or the built-in default when unset. */

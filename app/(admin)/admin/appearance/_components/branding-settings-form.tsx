@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { BrandMark } from "@/components/common/brand-mark";
@@ -12,20 +13,32 @@ import { getInitials } from "@/lib/utils";
 interface Props {
   initialBrandName: string | null;
   initialFaviconUrl: string | null;
+  initialLogoDarkUrl: string | null;
   initialLogoUrl: string | null;
 }
 
-/** Shared upload/remove logic for the logo and favicon fields — same
- * endpoint shape (`/api/admin/settings/{kind}`), form field, and JSON
- * response key (`{kind}Url`) for both. */
-function useBrandImageUpload(
-  kind: "favicon" | "logo",
-  initialUrl: string | null
-) {
+type BrandImageKind = "favicon" | "logo" | "logoDark";
+
+const BRAND_IMAGE_CONFIG: Record<
+  BrandImageKind,
+  { label: string; path: string }
+> = {
+  logo: { path: "logo", label: "Logo" },
+  logoDark: { path: "logo-dark", label: "Dark-background logo" },
+  favicon: { path: "favicon", label: "Favicon" },
+};
+
+/** Shared upload/remove logic for the logo, dark-background logo, and favicon
+ * fields — endpoint `/api/admin/settings/{path}` (see BRAND_IMAGE_CONFIG), form
+ * field `kind`, and JSON response key `{kind}Url` for all of them. Refreshes the
+ * route on success so server-rendered consumers (sidebar logo, favicon) pick up
+ * the change without a reload. */
+function useBrandImageUpload(kind: BrandImageKind, initialUrl: string | null) {
   const [url, setUrl] = useState(initialUrl);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const label = kind === "logo" ? "Logo" : "Favicon";
+  const router = useRouter();
+  const { label, path } = BRAND_IMAGE_CONFIG[kind];
 
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -37,7 +50,7 @@ function useBrandImageUpload(
     try {
       const formData = new FormData();
       formData.append(kind, file);
-      const res = await fetch(`/api/admin/settings/${kind}`, {
+      const res = await fetch(`/api/admin/settings/${path}`, {
         method: "POST",
         body: formData,
       });
@@ -50,6 +63,7 @@ function useBrandImageUpload(
         return;
       }
       setUrl(data[`${kind}Url`] ?? null);
+      router.refresh();
       toast.success(`${label} uploaded.`);
     } catch {
       toast.error("Network error. Please try again.");
@@ -61,7 +75,7 @@ function useBrandImageUpload(
   async function remove() {
     setUploading(true);
     try {
-      const res = await fetch(`/api/admin/settings/${kind}`, {
+      const res = await fetch(`/api/admin/settings/${path}`, {
         method: "DELETE",
       });
       if (!res.ok) {
@@ -69,6 +83,7 @@ function useBrandImageUpload(
         return;
       }
       setUrl(null);
+      router.refresh();
       toast.success(`${label} removed.`);
     } catch {
       toast.error("Network error. Please try again.");
@@ -83,12 +98,14 @@ function useBrandImageUpload(
 export function BrandingSettingsForm({
   initialBrandName,
   initialFaviconUrl,
+  initialLogoDarkUrl,
   initialLogoUrl,
 }: Props) {
   const [brandName, setBrandName] = useState(initialBrandName ?? "");
   const [savedBrandName, setSavedBrandName] = useState(initialBrandName ?? "");
   const [savingName, setSavingName] = useState(false);
   const logo = useBrandImageUpload("logo", initialLogoUrl);
+  const logoDark = useBrandImageUpload("logoDark", initialLogoDarkUrl);
   const favicon = useBrandImageUpload("favicon", initialFaviconUrl);
 
   const displayName = brandName.trim() || PRODUCT_NAME;
@@ -123,8 +140,8 @@ export function BrandingSettingsForm({
       <div>
         <h3 className="text-sm font-medium text-base-content">Branding</h3>
         <p className="text-xs text-base-content-muted mt-0.5">
-          Shown in the sidebar, emails, and browser tab instead of "
-          {PRODUCT_NAME}".
+          Shown in the sidebar, login page, customer portal, emails, and browser
+          tab instead of "{PRODUCT_NAME}".
         </p>
       </div>
 
@@ -188,8 +205,65 @@ export function BrandingSettingsForm({
           />
         </div>
         <p className="text-xs text-base-content-muted">
-          PNG, JPEG, SVG, or WebP — up to 2 MB. Also used as the browser tab
-          icon unless you set a dedicated favicon below.
+          PNG, JPEG, SVG, or WebP — up to 2 MB. Used on the login page, customer
+          portal, and emails, and as the browser tab icon unless you set a
+          dedicated favicon below.
+        </p>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label>Logo for dark backgrounds</Label>
+        <div className="flex items-center gap-4">
+          {/* Previewed on the real sidebar color so the contrast is what the
+              admin will actually get. */}
+          <div className="flex size-14 shrink-0 items-center justify-center rounded-lg border border-sidebar-border bg-sidebar overflow-hidden">
+            <BrandMark
+              fallbackIcon={
+                <span className="text-sm font-semibold text-sidebar-content">
+                  {getInitials(displayName)}
+                </span>
+              }
+              imgClassName="max-h-12 max-w-12 object-contain"
+              logoUrl={logoDark.url ?? logo.url}
+              name={displayName}
+              textClassName="sr-only"
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button
+              disabled={logoDark.uploading}
+              onClick={() => logoDark.fileInputRef.current?.click()}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              {logoDark.url ? "Replace" : "Upload"}
+            </Button>
+            {logoDark.url && (
+              <Button
+                className="border-red-200 text-red-600 hover:bg-red-50"
+                disabled={logoDark.uploading}
+                onClick={logoDark.remove}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                Remove
+              </Button>
+            )}
+          </div>
+          <input
+            accept="image/png,image/jpeg,image/svg+xml,image/webp"
+            className="hidden"
+            onChange={logoDark.handleFileSelect}
+            ref={logoDark.fileInputRef}
+            type="file"
+          />
+        </div>
+        <p className="text-xs text-base-content-muted">
+          Optional — shown in the sidebar, which has a dark background. Upload a
+          white or light version of your logo. Falls back to the logo above when
+          not set.
         </p>
       </div>
 

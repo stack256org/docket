@@ -10,7 +10,7 @@ import { requireAdmin } from "@/lib/authz";
 import {
   getPlatformSettings,
   resolveBrandName,
-  resolveLogoUrl,
+  resolveSidebarLogoUrl,
 } from "@/lib/settings";
 import { isSidebarCollapsed, SIDEBAR_COOKIE } from "@/lib/sidebar";
 
@@ -42,7 +42,10 @@ export default async function AdminLayout({
         <AgentSidebar
           brandName={resolveBrandName(settings.brandName)}
           defaultCollapsed={sidebarCollapsed}
-          logoUrl={resolveLogoUrl(settings.logoKey)}
+          logoUrl={resolveSidebarLogoUrl(
+            settings.logoDarkKey,
+            settings.logoKey
+          )}
           userEmail={session.email}
           userName={session.name ?? session.email}
           userRole="admin"

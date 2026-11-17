@@ -148,7 +148,7 @@ validated client- and server-side. They live on `platform_settings`, are read pe
 `getAttachmentLimits()` in `lib/settings.ts`, and apply to the customer portal, agent replies and the
 public API immediately — no redeploy. Lowering a limit never deletes existing files: a ticket already
 over its storage limit (for example after a merge) keeps and can serve them but takes no new
-attachments until usage is back under the limit. File types and the 2 MB logo/favicon limits are fixed.
+attachments until usage is back under the limit. File types and the 2 MB logo/dark-logo/favicon limits are fixed.
 
 ### Ticket Actions
 
@@ -312,3 +312,21 @@ This is provided by the scaffold — no custom implementation needed.
 - Destructive actions (delete ticket, delete user, deactivate user) always use `Dialog` from `components/ui/dialog.tsx` with explicit confirmation — never `window.confirm()`.
 - Use Phosphor Icons: `TrashIcon` for delete, `UserMinusIcon` / `UserPlusIcon` for deactivate / reactivate, `ShieldCheckIcon` for admin role.
 - Deactivate uses primary (not destructive) button styling and a muted status badge — it's routine off-boarding, not an error state. Only Delete Permanently is styled destructive.
+
+---
+
+## 9. Branding (`/admin/appearance`)
+
+The Branding card on Appearance holds three optional images, stored under `branding/` in storage
+(PNG, JPEG, SVG or WebP up to 2 MB; the favicon also accepts ICO):
+
+| Field | Column | Used in | When unset |
+|---|---|---|---|
+| Logo | `logo_key` | Login page, customer portal, emails — and the sidebar when no dark-background logo is set | Brand name as text |
+| Logo for dark backgrounds | `logo_dark_key` | Agent/admin sidebar only | Falls back to the logo |
+| Favicon | `favicon_key` | Browser tab | Falls back to the logo, then `public/favicon.ico` |
+
+The sidebar is dark in every theme preset, so a dark wordmark is unreadable there; upload a white or
+light version as the dark-background logo (`resolveSidebarLogoUrl()` in `lib/settings.ts`, uploaded via
+`/api/admin/settings/logo-dark`). Uploading or removing any of the three refreshes the page, so the
+sidebar and browser tab update without a manual reload.

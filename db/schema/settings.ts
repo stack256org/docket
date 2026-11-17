@@ -13,6 +13,9 @@ export const platformSettings = pgTable("platform_settings", {
   // White-label branding — null means "use the PRODUCT_NAME/wordmark default".
   brandName: text("brand_name"),
   logoKey: text("logo_key"),
+  // Logo for dark backgrounds — the sidebar is dark in every preset, so a dark
+  // wordmark vanishes there. Null falls back to logoKey.
+  logoDarkKey: text("logo_dark_key"),
   // Square icon-only mark for the browser tab — a full logo (often a
   // wordmark+icon lockup) reads as mush at 16px. Null falls back to logoKey.
   faviconKey: text("favicon_key"),
