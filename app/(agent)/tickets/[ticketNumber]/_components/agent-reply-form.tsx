@@ -489,7 +489,10 @@ export function AgentReplyForm({
                   ? "border-amber-200 bg-amber-50 dark:border-amber-900/70 dark:bg-amber-950/40"
                   : "border-base-300 bg-base-200"
               )}
-              key={d.userId}
+              // updatedAt in the key: RichTextContent reads its content only
+              // on mount, so a refreshed draft must remount or the preview
+              // goes stale while "Use this draft" copies the newer text.
+              key={`${d.userId}:${d.updatedAt}`}
             >
               <div className="flex items-center justify-between gap-2 text-xs">
                 <span className="flex min-w-0 items-center gap-1.5 text-base-content">
