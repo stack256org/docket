@@ -33,7 +33,7 @@ import {
   type TicketStatus,
 } from "@/lib/ticket-config";
 import { getLinkedTicketNumbers } from "@/lib/tickets/links";
-import { getDraftTicketIds } from "@/lib/tickets/reply-drafts";
+import { getDraftMarkers } from "@/lib/tickets/reply-drafts";
 import {
   buildTicketsWhereClause,
   parseTicketListSort,
@@ -319,7 +319,7 @@ async function TicketsResults({
   const [
     tagsByTicket,
     updatedByRows,
-    draftTicketIds,
+    draftMarkers,
     linkedByTicket,
     ticketActions,
     platformSettings,
@@ -342,7 +342,7 @@ async function TicketsResults({
           )
           .orderBy(ticketActivity.ticketId, desc(ticketActivity.createdAt))
       : Promise.resolve([]),
-    getDraftTicketIds(ticketIds, agentId),
+    getDraftMarkers(ticketIds, agentId),
     getLinkedTicketNumbers(ticketIds),
     getTicketActionSettings(),
     getPlatformSettings(),
@@ -357,7 +357,8 @@ async function TicketsResults({
   const rowsWithExtras = rows.map((r) => ({
     ...r,
     tags: tagsByTicket[r.id] ?? [],
-    hasDraft: draftTicketIds.has(r.id),
+    hasDraft: draftMarkers.mine.has(r.id),
+    colleagueDraftNames: draftMarkers.others.get(r.id) ?? [],
     linkedTicketNumbers: linkedByTicket[r.id] ?? [],
     updatedByName: updatedByTicket[r.id] ?? null,
     slaSnapshot: computeSlaSnapshot(

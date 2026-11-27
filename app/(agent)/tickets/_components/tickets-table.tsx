@@ -43,6 +43,8 @@ interface Row {
   assignedAgentId: string | null;
   assignedAgentName: string | null;
   category: string;
+  /** Names of OTHER agents with an unsent draft on this ticket (read-only marker). */
+  colleagueDraftNames: string[];
   customerId: string;
   customerName: string;
   /** The current agent has an unsent reply draft on this ticket. */
@@ -144,6 +146,16 @@ export function TicketsTable({
   const [draftIds, setDraftIds] = useState(
     () => new Set(initialRows.filter((r) => r.hasDraft).map((r) => r.id))
   );
+  // Colleagues' drafts (ticketId -> author names), same re-check.
+  const [colleagueDrafts, setColleagueDrafts] = useState<
+    Record<string, string[]>
+  >(() =>
+    Object.fromEntries(
+      initialRows
+        .filter((r) => r.colleagueDraftNames.length > 0)
+        .map((r) => [r.id, r.colleagueDraftNames])
+    )
+  );
   useEffect(() => {
     const ids = initialRows.map((r) => r.id);
     if (ids.length === 0) {
@@ -155,11 +167,21 @@ export function TicketsTable({
       signal: controller.signal,
     })
       .then((res) => (res.ok ? res.json() : null))
-      .then((data: { ticketIds?: string[] } | null) => {
-        if (data?.ticketIds) {
-          setDraftIds(new Set(data.ticketIds));
+      .then(
+        (
+          data: {
+            ticketIds?: string[];
+            colleagueDrafts?: Record<string, string[]>;
+          } | null
+        ) => {
+          if (data?.ticketIds) {
+            setDraftIds(new Set(data.ticketIds));
+          }
+          if (data?.colleagueDrafts) {
+            setColleagueDrafts(data.colleagueDrafts);
+          }
         }
-      })
+      )
       .catch(() => {
         // Best effort — the server-rendered markers stay as they were.
       });
@@ -552,7 +574,11 @@ export function TicketsTable({
                   onToggleSelect={() => toggleOne(row.id)}
                   priorities={priorities}
                   priorityMap={priorityMap}
-                  row={{ ...row, hasDraft: draftIds.has(row.id) }}
+                  row={{
+                    ...row,
+                    hasDraft: draftIds.has(row.id),
+                    colleagueDraftNames: colleagueDrafts[row.id] ?? [],
+                  }}
                   selectable={canSelect}
                   selected={selected.has(row.id)}
                   showSlaAndOverdue={showSlaAndOverdue}

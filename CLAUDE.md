@@ -147,7 +147,7 @@ Admins can change the platform color theme and appearance mode (light/dark/auto)
 Ticket **descriptions** (submit form) and **replies** (both customer and agent) use a shared **Tiptap** editor — not a plain `Textarea`.
 
 - **Compose:** `components/common/rich-text-editor.tsx` — editable editor + brand-themed toolbar (bold, italic, underline, strike, inline code, bullet/numbered lists, code block, quote). Pass `tone="warning"` for agent internal notes. Pasted URLs auto-link.
-- **Display:** `components/common/rich-text-content.tsx` — renders content **read-only through Tiptap** (`editable: false`). Never render description/reply content as raw HTML — this keeps it XSS-safe by construction, so no sanitizer is needed.
+- **Display:** `components/common/rich-text-content.tsx` — renders content **read-only through Tiptap** (`editable: false`). Never render description/reply content as raw HTML — this keeps it XSS-safe by construction, so no sanitizer is needed. Bare URLs/emails are linkified at render time (`rich-text-linkify.ts`, covering legacy and API content too), and links show a Copy/Open card on hover or focus (`rich-text-link-actions.tsx`).
 - **Shared config:** `components/common/rich-text-extensions.ts` — one extension set for both, so compose and display always match.
 - **Storage:** `tickets.description` and reply `content` (`ticketComments.content`) are both stored as **Tiptap JSON**. Legacy rows may be plain text — every reader tolerates both.
 - **Previews/emails/notifications/push:** never send raw JSON to a text context. Flatten with `richTextToPlainText()` from `lib/rich-text.ts`; validate emptiness with `isRichTextEmpty()`.

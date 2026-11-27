@@ -1,4 +1,5 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, ne } from "drizzle-orm";
+import { user } from "@/db/schema/auth";
 import { ticketReplyDrafts } from "@/db/schema/reply-drafts";
 import { db } from "@/lib/db";
 
@@ -29,25 +30,79 @@ export async function getReplyDraft(
   return row ?? null;
 }
 
-/** Ticket IDs (out of `ticketIds`) on which `userId` has an unsent draft —
- * drives the "Draft" marker on the /tickets list. */
-export async function getDraftTicketIds(
-  ticketIds: string[],
+export interface ColleagueReplyDraft {
+  authorName: string;
+  content: string;
+  isInternal: boolean;
+  updatedAt: Date;
+  userId: string;
+}
+
+/** Other agents' unsent drafts on a ticket, newest first. Shown read-only above
+ * the composer; the owning agent's own row is never touched. */
+export async function getColleagueReplyDrafts(
+  ticketId: string,
   userId: string
-): Promise<Set<string>> {
-  if (ticketIds.length === 0) {
-    return new Set();
-  }
-  const rows = await db
-    .select({ ticketId: ticketReplyDrafts.ticketId })
+): Promise<ColleagueReplyDraft[]> {
+  return db
+    .select({
+      userId: ticketReplyDrafts.userId,
+      authorName: user.name,
+      content: ticketReplyDrafts.content,
+      isInternal: ticketReplyDrafts.isInternal,
+      updatedAt: ticketReplyDrafts.updatedAt,
+    })
     .from(ticketReplyDrafts)
+    .innerJoin(user, eq(user.id, ticketReplyDrafts.userId))
     .where(
       and(
-        eq(ticketReplyDrafts.userId, userId),
-        inArray(ticketReplyDrafts.ticketId, ticketIds)
+        eq(ticketReplyDrafts.ticketId, ticketId),
+        ne(ticketReplyDrafts.userId, userId)
       )
-    );
-  return new Set(rows.map((r) => r.ticketId));
+    )
+    .orderBy(desc(ticketReplyDrafts.updatedAt));
+}
+
+export interface DraftMarkers {
+  /** Tickets (out of the input) on which the caller has an unsent draft. */
+  mine: Set<string>;
+  /** ticketId -> distinct names of OTHER agents with a draft on it. */
+  others: Map<string, string[]>;
+}
+
+/** Drives the draft markers on the /tickets list: the caller's own drafts and
+ * which colleagues have one. */
+export async function getDraftMarkers(
+  ticketIds: string[],
+  userId: string
+): Promise<DraftMarkers> {
+  const mine = new Set<string>();
+  const others = new Map<string, string[]>();
+  if (ticketIds.length === 0) {
+    return { mine, others };
+  }
+  const rows = await db
+    .select({
+      ticketId: ticketReplyDrafts.ticketId,
+      userId: ticketReplyDrafts.userId,
+      authorName: user.name,
+    })
+    .from(ticketReplyDrafts)
+    .innerJoin(user, eq(user.id, ticketReplyDrafts.userId))
+    .where(inArray(ticketReplyDrafts.ticketId, ticketIds))
+    .orderBy(ticketReplyDrafts.updatedAt);
+  for (const r of rows) {
+    if (r.userId === userId) {
+      mine.add(r.ticketId);
+      continue;
+    }
+    const names = others.get(r.ticketId) ?? [];
+    if (!names.includes(r.authorName)) {
+      names.push(r.authorName);
+    }
+    others.set(r.ticketId, names);
+  }
+  return { mine, others };
 }
 
 export async function deleteReplyDraft(ticketId: string, userId: string) {

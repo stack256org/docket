@@ -397,7 +397,7 @@ user_ticket_table_prefs
 
 ### `ticket_reply_drafts`
 
-An agent's unsent reply on a ticket, auto-saved by the reply composer. One row per (ticket, agent); deleted when the reply is sent, discarded, or emptied.
+An agent's unsent reply on a ticket, auto-saved by the reply composer. One row per (ticket, agent); deleted when the reply is sent, discarded, or emptied. Only the owner can write their row, but other agents can read it: it is shown read-only above the composer on the ticket page and as a marker on `/tickets`. Never visible to customers.
 
 ```
 ticket_reply_drafts

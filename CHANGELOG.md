@@ -7,14 +7,16 @@ Notable changes to Docket. The format follows
 Docket is below 1.0.0, so a minor version bump can still contain a breaking change.
 Anything needing manual work on upgrade is called out under **Upgrade notes**.
 
-## [Unreleased]
+## [0.9.0] - 2026-11-27
 
 ### Added
 
+- **See colleagues' reply drafts.** Other agents' unsent drafts now show read-only above the composer on a ticket, with a "Use this draft" button that copies one into your own composer, and `/tickets` marks tickets where a colleague has a draft. Drafts remain per agent and are never visible to customers.
 - **Logo for dark backgrounds.** Admin → Appearance has an optional second logo shown in the sidebar, which is dark in every theme. Upload a light/white version so a dark wordmark stays readable; without one the sidebar keeps using the main logo.
 
 ### Fixed
 
+- **Links in conversations are clickable and copyable.** URLs and email addresses in ticket descriptions and replies now always render as links that open in a new tab — including ones at the very end of a message, in older plain-text replies and in API-created tickets, which previously showed as plain text. Hovering or focusing a link shows a small card with **Copy** and **Open** buttons.
 - **Branding uploads show up immediately.** Uploading or removing the logo, dark-background logo or favicon in Admin → Appearance now updates the sidebar and browser tab right away instead of after a page reload.
 
 ## [0.8.0] - 2026-10-22
@@ -322,7 +324,8 @@ Replying by email, satisfaction ratings after a request is closed, a spreadsheet
 of the request list itself, one-click deploy buttons, and attachments and webhooks in the
 public API. See the Roadmap in the README.
 
-[Unreleased]: https://github.com/stack256org/docket/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/stack256org/docket/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/stack256org/docket/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/stack256org/docket/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/stack256org/docket/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/stack256org/docket/compare/v0.5.0...v0.6.0

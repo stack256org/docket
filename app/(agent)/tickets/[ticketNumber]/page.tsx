@@ -48,7 +48,10 @@ import { resolveAttachmentLimits } from "@/lib/tickets/attachment-limits";
 import { canDeleteAttachment } from "@/lib/tickets/attachment-permissions";
 import { ticketLinkLabel } from "@/lib/tickets/link-types";
 import { getTicketLinks } from "@/lib/tickets/links";
-import { getReplyDraft } from "@/lib/tickets/reply-drafts";
+import {
+  getColleagueReplyDrafts,
+  getReplyDraft,
+} from "@/lib/tickets/reply-drafts";
 import {
   buildTicketsWhereClause,
   parseTicketListSort,
@@ -294,6 +297,7 @@ export default async function AgentTicketDetailPage({
     nextTicketNumber,
     sendReplyOnEnter,
     replyDraft,
+    colleagueDrafts,
     links,
     ticketActions,
     platformSettings,
@@ -321,6 +325,7 @@ export default async function AgentTicketDetailPage({
     ),
     getSendReplyOnEnterPref(session.id),
     getReplyDraft(ticket.id, session.id),
+    getColleagueReplyDrafts(ticket.id, session.id),
     getTicketLinks(ticket.id),
     getTicketActionSettings(),
     getPlatformSettings(),
@@ -676,6 +681,13 @@ export default async function AgentTicketDetailPage({
               <AgentReplyForm
                 attachmentLimits={resolveAttachmentLimits(platformSettings)}
                 cannedResponses={cannedResponses}
+                colleagueDrafts={colleagueDrafts.map((d) => ({
+                  userId: d.userId,
+                  authorName: d.authorName,
+                  content: d.content,
+                  isInternal: d.isInternal,
+                  updatedAt: d.updatedAt.toISOString(),
+                }))}
                 initialDraft={
                   replyDraft && {
                     content: replyDraft.content,

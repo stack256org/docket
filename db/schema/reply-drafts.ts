@@ -3,7 +3,10 @@ import { user } from "@/db/schema/auth";
 import { tickets } from "@/db/schema/tickets";
 
 // An agent's unsent reply on a ticket — one row per (ticket, agent), so two
-// agents drafting on the same ticket never see each other's text. Auto-saved
+// agents can draft on the same ticket at once without overwriting each other;
+// nobody can edit another agent's row. Colleagues do see it, read-only, above
+// the composer on the ticket page (with a "Use this draft" copy action) and as
+// a marker on the /tickets list; customers never do. Auto-saved
 // by the reply composer (PUT /api/tickets/[id]/draft), restored on the next
 // visit from any device, and deleted once the reply is actually sent (by the
 // comments route) or the agent discards it. `content` is Tiptap JSON, same as
