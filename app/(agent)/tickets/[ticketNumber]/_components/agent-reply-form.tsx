@@ -4,6 +4,7 @@ import {
   LockSimpleIcon,
   PaperclipIcon,
   PaperPlaneTiltIcon,
+  PencilSimpleLineIcon,
   TrashIcon,
   XIcon,
 } from "@phosphor-icons/react";
@@ -11,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { LocalDateTime } from "@/components/common/local-datetime";
+import { RichTextContent } from "@/components/common/rich-text-content";
 import {
   RichTextEditor,
   type RichTextEditorHandle,
@@ -64,6 +66,16 @@ interface Props {
   // Admin-configured caps (Admin → Ticket Config).
   attachmentLimits: AttachmentLimits;
   cannedResponses?: { id: string; title: string; content: string }[];
+  /** Other agents' unsent drafts on this ticket — shown read-only above the
+   * composer, with a "Use this draft" action that copies one into this
+   * agent's own composer (and so, via autosave, their own draft). */
+  colleagueDrafts?: {
+    userId: string;
+    authorName: string;
+    content: string;
+    isInternal: boolean;
+    updatedAt: string;
+  }[];
   /** The agent's own saved, unsent reply for this ticket (see
    * db/schema/reply-drafts.ts) — restored into the composer on load. */
   initialDraft?: {
@@ -82,6 +94,7 @@ export function AgentReplyForm({
   ticketStorageUsedBytes,
   ticketId,
   cannedResponses,
+  colleagueDrafts,
   initialDraft,
   sendReplyOnEnter,
 }: Props) {
@@ -108,6 +121,8 @@ export function AgentReplyForm({
   // ── Draft autosave ──
   // The reply is saved server-side per (ticket, agent) so it survives a
   // refresh, closing the tab, or coming back from another device days later.
+  // Each agent edits only their own row; colleagues see it read-only (above
+  // the composer on their ticket page) and never the customer.
   const [draftStatus, setDraftStatus] = useState<DraftStatus>(
     initialDraft ? "saved" : "idle"
   );
@@ -115,6 +130,10 @@ export function AgentReplyForm({
     initialDraft?.updatedAt ?? null
   );
   const [discardOpen, setDiscardOpen] = useState(false);
+  // Colleague draft awaiting "Replace your reply?" confirmation.
+  const [pendingColleagueDraft, setPendingColleagueDraft] = useState<
+    NonNullable<Props["colleagueDrafts"]>[number] | null
+  >(null);
   const lastSavedKeyRef = useRef(
     initialDraft
       ? draftKey(initialDraft.content, initialDraft.isInternal)
@@ -297,6 +316,27 @@ export function AgentReplyForm({
     toast.success("Draft discarded.");
   }
 
+  function applyColleagueDraft(
+    draft: NonNullable<Props["colleagueDrafts"]>[number]
+  ) {
+    // Autosave then persists this as the caller's OWN draft; the colleague's
+    // row is untouched.
+    setContent(draft.content);
+    setIsInternal(draft.isInternal);
+    setPendingColleagueDraft(null);
+    editorRef.current?.focus();
+  }
+
+  function handleUseColleagueDraft(
+    draft: NonNullable<Props["colleagueDrafts"]>[number]
+  ) {
+    if (isRichTextEmpty(content)) {
+      applyColleagueDraft(draft);
+    } else {
+      setPendingColleagueDraft(draft);
+    }
+  }
+
   // Object URLs for image thumbnails in the compose box — created when the
   // file list changes and revoked on cleanup so they never leak.
   const [previews, setPreviews] = useState<Map<File, string>>(new Map());
@@ -435,6 +475,51 @@ export function AgentReplyForm({
   return (
     <form className="space-y-2" onSubmit={handleSubmit} ref={formRef}>
       {error && <p className="text-xs text-red-600">{error}</p>}
+
+      {/* Colleagues' unsent drafts — read-only; "Use this draft" copies one
+          into this agent's own composer. Capped so the composer stays on
+          screen. */}
+      {colleagueDrafts && colleagueDrafts.length > 0 && (
+        <div className="max-h-56 space-y-2 overflow-y-auto">
+          {colleagueDrafts.map((d) => (
+            <div
+              className={cn(
+                "rounded-box border px-3 py-2",
+                d.isInternal
+                  ? "border-amber-200 bg-amber-50 dark:border-amber-900/70 dark:bg-amber-950/40"
+                  : "border-base-300 bg-base-200"
+              )}
+              key={d.userId}
+            >
+              <div className="flex items-center justify-between gap-2 text-xs">
+                <span className="flex min-w-0 items-center gap-1.5 text-base-content">
+                  <PencilSimpleLineIcon className="size-3.5 shrink-0" />
+                  <span className="truncate">
+                    <strong>{d.authorName}</strong> has an unsent{" "}
+                    {d.isInternal ? "internal note" : "reply"}
+                  </span>
+                  <span className="shrink-0 text-base-content-muted">
+                    · <LocalDateTime date={d.updatedAt} />
+                  </span>
+                </span>
+                <Button
+                  className="shrink-0"
+                  disabled={submitting}
+                  onClick={() => handleUseColleagueDraft(d)}
+                  size="xs"
+                  type="button"
+                  variant="outline"
+                >
+                  Use this draft
+                </Button>
+              </div>
+              <div className="mt-1.5 max-h-32 overflow-y-auto text-sm">
+                <RichTextContent content={d.content} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Slack-style compose box: text input on top (with its own formatting
           toolbar), a divided action bar at the bottom — attach + internal-note
@@ -636,6 +721,52 @@ export function AgentReplyForm({
               onClick={handleDiscardDraft}
             >
               Discard
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Replace-composer confirmation (colleague draft) */}
+      <Dialog
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingColleagueDraft(null);
+          }
+        }}
+        open={pendingColleagueDraft !== null}
+      >
+        <DialogContent className="rounded-xl max-w-sm">
+          <DialogHeader>
+            <div className="mx-auto mb-2 flex size-10 items-center justify-center rounded-full bg-amber-100">
+              <PencilSimpleLineIcon className="size-5 text-amber-700" />
+            </div>
+            <DialogTitle className="text-base-content text-center">
+              Replace your reply?
+            </DialogTitle>
+            <DialogDescription className="text-base-content-muted text-center">
+              Your current text will be replaced with{" "}
+              {pendingColleagueDraft?.authorName}&apos;s draft.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              className="flex-1 border-base-300 text-base-content rounded-md"
+              onClick={() => setPendingColleagueDraft(null)}
+              type="button"
+              variant="outline"
+            >
+              Cancel
+            </Button>
+            <Button
+              className="flex-1 rounded-md"
+              onClick={() => {
+                if (pendingColleagueDraft) {
+                  applyColleagueDraft(pendingColleagueDraft);
+                }
+              }}
+              type="button"
+            >
+              Replace
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -83,6 +83,9 @@ importers:
       files-sdk:
         specifier: ^2.1.0
         version: 2.1.0(@aws-sdk/client-s3@3.1086.0)(@aws-sdk/s3-presigned-post@3.1086.0)(@aws-sdk/s3-request-presigner@3.1086.0)(@opentelemetry/api@1.9.0)(ai@6.0.33(zod@4.4.3))(hono@4.12.25)(next@16.2.9(@opentelemetry/api@1.9.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(vue@3.5.39(typescript@6.0.3))(zod@4.4.3)
+      linkifyjs:
+        specifier: ^4.3.3
+        version: 4.3.3
       next:
         specifier: 16.2.9
         version: 16.2.9(@opentelemetry/api@1.9.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -1695,6 +1698,9 @@ packages:
   '@smithy/core@3.29.3':
     resolution: {integrity: sha512-L+Ys6ecjk5vwPMAKHBpPKlJ3DkqwNcnfEISXBZIsVvWG/XKXfsAP8mwIYlTeLcd2ElHdesPI8OuOmJSFAPhm6A==}
     engines: {node: '>=18.0.0'}
+    deprecated: |-
+      Deprecated due to a bug in custom logger data redaction. Upgrade to the latest version. If you used a custom logger with this
+        version, review your logs and rotate any credentials or other secrets. See https://github.com/aws/aws-sdk-js-v3/issues/8393.
 
   '@smithy/credential-provider-imds@4.4.8':
     resolution: {integrity: sha512-q9J7JTiXrAhB8sDp4px97uEPT7CwKH61Co78grdNQvU8QZAdiuaSRhP0tUVf2ogy36RZTrlMU1rBmDEH+cnkiA==}

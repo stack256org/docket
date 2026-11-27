@@ -33,6 +33,8 @@ interface Row {
   assignedAgentId: string | null;
   assignedAgentName: string | null;
   category: string;
+  /** Names of OTHER agents with an unsent draft on this ticket (read-only marker). */
+  colleagueDraftNames: string[];
   customerName: string;
   /** The current agent has an unsent reply draft on this ticket. */
   hasDraft: boolean;
@@ -342,6 +344,16 @@ export function TicketRow({
               title="Draft — unsent reply saved"
             >
               <PencilSimpleLineIcon className="size-4" weight="bold" />
+            </span>
+          )}
+          {row.colleagueDraftNames.length > 0 && (
+            <span
+              aria-label={`Draft by ${row.colleagueDraftNames.join(", ")}`}
+              className="-my-0.5 flex size-6 shrink-0 items-center justify-center rounded-field text-base-content-muted"
+              role="img"
+              title={`Draft by ${row.colleagueDraftNames.join(", ")}`}
+            >
+              <PencilSimpleLineIcon className="size-4" />
             </span>
           )}
           <Link

@@ -124,11 +124,11 @@ The full ticket view for agents. Split into two panels:
 ### Reply Drafts
 
 - The composer auto-saves the agent's unsent reply ~1s after they stop typing (and immediately when they leave the page or move to Previous/Next), to `ticket_reply_drafts` via `PUT /api/tickets/{id}/draft`.
-- Drafts are **per agent, per ticket** — never visible to other agents or the customer — and follow the agent across browsers/devices. The internal-note mode is saved with the text.
+- Drafts are **per agent, per ticket** — never visible to the customer — and follow the agent across browsers/devices. Only the owning agent can edit or discard their draft, but other agents see it **read-only** above the composer ("{name} has an unsent reply/internal note", amber for internal notes) with a **Use this draft** button that copies it into their own composer (asking "Replace your reply?" first if the composer already has text); autosave then creates their own draft and the colleague's is left untouched. The internal-note mode is saved with the text.
 - On returning to the ticket, the draft is restored into the composer. The action bar shows "Saving draft…" / "Draft saved · {time}" / "Couldn't save draft", plus a trash button that discards it (with a confirmation dialog; `DELETE /api/tickets/{id}/draft`).
 - Sending the reply deletes the draft server-side (in the comments route). Clearing the composer also deletes it.
 - Attachments are not drafted — unsent files only live in the browser tab.
-- `/tickets` shows a pencil icon (browser tooltip "Draft — unsent reply saved" on hover) next to the subject of every ticket where the current agent has a saved draft.
+- `/tickets` shows a pencil icon (browser tooltip "Draft — unsent reply saved" on hover) next to the subject of every ticket where the current agent has a saved draft, plus a muted pencil icon (tooltip "Draft by {names}") where colleagues have drafts. Both can show on the same row.
 
 ### Internal Note
 
